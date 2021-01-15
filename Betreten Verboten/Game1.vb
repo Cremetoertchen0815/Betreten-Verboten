@@ -15,6 +15,7 @@ Namespace Betreten_Verboten
             Content.RootDirectory = "Content"
         End Sub
 
+        'Lool
         Protected Overrides Sub Initialize()
             MyBase.Initialize()
         End Sub
