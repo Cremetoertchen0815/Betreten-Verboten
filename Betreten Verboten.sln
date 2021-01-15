@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30621.155
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Betreten Verboten", "Betreten Verboten\Betreten Verboten.vbproj", "{06ABC9AB-8232-45DD-8C50-B82AA3A73AAA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{06ABC9AB-8232-45DD-8C50-B82AA3A73AAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06ABC9AB-8232-45DD-8C50-B82AA3A73AAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06ABC9AB-8232-45DD-8C50-B82AA3A73AAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06ABC9AB-8232-45DD-8C50-B82AA3A73AAA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4C8F5CA0-C53D-4ADB-BAA8-399B14009FE6}
+	EndGlobalSection
+EndGlobal
