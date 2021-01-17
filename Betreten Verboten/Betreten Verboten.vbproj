@@ -46,7 +46,10 @@
     <OptionInfer>On</OptionInfer>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Enums.vb" />
     <Compile Include="Game1.vb" />
+    <Compile Include="GameInstance.vb" />
+    <Compile Include="Player.vb" />
     <Compile Include="Program.vb" />
     <Compile Include="Properties\AssemblyInfo.vb" />
   </ItemGroup>
@@ -59,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon.ico" />
+    <Content Include="ToDo.txt" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />

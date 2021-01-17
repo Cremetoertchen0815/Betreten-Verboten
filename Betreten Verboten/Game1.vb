@@ -2,46 +2,60 @@
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
 
-Namespace Betreten_Verboten
-    Public Class Game1
-        Inherits Game
+''' <summary>
+''' Enthällt den eigentlichen Code für das Basis-Spiel
+''' </summary>
+Public Class GameRoom
 
-        Private graphics As GraphicsDeviceManager
-        Private spriteBatch As SpriteBatch
+    'Spiele-Flags und Variables
+    Private Spielers As Player() 'Enthält sämtliche SPieler, die an dieser Runde teilnehmen
+    Private SpielerIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
 
-        Public Sub New()
-            MyBase.New()
-            graphics = New GraphicsDeviceManager(Me)
-            Content.RootDirectory = "Content"
-        End Sub
+    'Assets
+    Private WürfelAugen As Texture2D
+    Private WürfelRahmen As Texture2D
 
-        'Lool
-        Protected Overrides Sub Initialize()
-            MyBase.Initialize()
-        End Sub
+    Protected Sub LoadContent()
+        'Lade Assets
+        WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
+        WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
+    End Sub
 
-        Protected Overrides Sub LoadContent()
-            ' Create a new SpriteBatch, which can be used to draw textures.
-            spriteBatch = New SpriteBatch(GraphicsDevice)
-        End Sub
+    Protected Sub UnloadContent()
 
-        Protected Overrides Sub UnloadContent()
+    End Sub
 
-        End Sub
+    Protected Sub Update(ByVal gameTime As GameTime)
 
-        Protected Overrides Sub Update(ByVal gameTime As GameTime)
-            If GamePad.GetState(PlayerIndex.One).Buttons.Back = ButtonState.Pressed OrElse Keyboard.GetState().IsKeyDown(Keys.Escape) Then
-                [Exit]()
-            End If
+    End Sub
 
-            MyBase.Update(gameTime)
-        End Sub
+    Protected Sub Draw(ByVal gameTime As GameTime)
 
-        Protected Overrides Sub Draw(ByVal gameTime As GameTime)
-            GraphicsDevice.Clear(Color.Red)
+        SpriteBatch.Begin()
+        SpriteBatch.Draw(WürfelAugen, New Rectangle(100, 100, 250, 250), GetWürfelSourceRectangle(2), Color.White)
+        SpriteBatch.Draw(WürfelRahmen, New Rectangle(100, 100, 250, 250), Color.White)
+        SpriteBatch.End()
+    End Sub
 
-            MyBase.Draw(gameTime)
-        End Sub
+#Region "Helper Function"
+    Private Function GetWürfelSourceRectangle(augenzahl As Integer) As Rectangle
+        Select Case augenzahl
+            Case 1
+                Return New Rectangle(0, 0, 260, 260)
+            Case 2
+                Return New Rectangle(260, 0, 260, 260)
+            Case 3
+                Return New Rectangle(520, 0, 260, 260)
+            Case 4
+                Return New Rectangle(0, 260, 260, 260)
+            Case 5
+                Return New Rectangle(260, 260, 260, 260)
+            Case 6
+                Return New Rectangle(520, 260, 260, 260)
+            Case Else
+                Return New Rectangle(0, 0, 0, 0)
+        End Select
+    End Function
+#End Region
 
-    End Class
-End Namespace
+End Class
