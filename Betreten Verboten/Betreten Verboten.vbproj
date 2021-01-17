@@ -47,7 +47,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Enums.vb" />
-    <Compile Include="Game1.vb" />
+    <Compile Include="GameRoom.vb" />
     <Compile Include="GameInstance.vb" />
     <Compile Include="Player.vb" />
     <Compile Include="Program.vb" />
