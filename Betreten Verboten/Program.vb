@@ -1,4 +1,5 @@
 ﻿Imports System
+Imports Betreten_Verboten.Framework.Tweening
 Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Content
 Imports Microsoft.Xna.Framework.Graphics
@@ -12,6 +13,9 @@ Public Module Program
     Friend Property Graphics As GraphicsDeviceManager
     Friend Property SpriteBatch As SpriteBatch
     Friend Property Content As ContentManager
+    Friend Property GameSize As Vector2 = New Vector2(1920, 1080)
+    Friend Property ReferencePixel As Texture2D
+    Friend Property Automator As TweenManager
 
     ''' <summary>
     ''' Hier steigt die Anwendung ein.

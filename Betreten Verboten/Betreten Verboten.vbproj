@@ -11,7 +11,8 @@
     <AssemblyName>Betreten Verboten</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MonoGamePlatform>Windows</MonoGamePlatform>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -21,6 +22,7 @@
     <OutputPath>bin\$(MonoGamePlatform)\$(Platform)\$(Configuration)\</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -29,6 +31,7 @@
     <OutputPath>bin\$(MonoGamePlatform)\$(Platform)\$(Configuration)\</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
@@ -47,6 +50,47 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Enums.vb" />
+    <Compile Include="Framwork\Graphics\Particles\Emitter.vb" />
+    <Compile Include="Framwork\Graphics\Particles\Emitters\RainEmitter.vb" />
+    <Compile Include="Framwork\Graphics\Particles\Emitters\SnowEmitter.vb" />
+    <Compile Include="Framwork\Graphics\Particles\Emitters\SprinklerEmitter.vb" />
+    <Compile Include="Framwork\Graphics\Particles\Particle.vb" />
+    <Compile Include="Framwork\Graphics\PostProcessing\BloomFilter.vb" />
+    <Compile Include="Framwork\Graphics\Primitives2D.vb" />
+    <Compile Include="Framwork\Graphics\QuadRenderer.vb" />
+    <Compile Include="Framwork\Graphics\STL.vb" />
+    <Compile Include="Framwork\Graphics\VertexPositionColorNormal.vb" />
+    <Compile Include="Framwork\Misc\Pool.vb" />
+    <Compile Include="Framwork\Misc\StaticFunctions.vb" />
+    <Compile Include="Framwork\Misc\TestState.vb" />
+    <Compile Include="Framwork\Tweening\IManagedType.vb" />
+    <Compile Include="Framwork\Tweening\ITransition.vb" />
+    <Compile Include="Framwork\Tweening\ITransitionType.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Color.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Double.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Int.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Single.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_String.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Vector2.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Vector3.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_Vector4.vb" />
+    <Compile Include="Framwork\Tweening\PropertyTransition.vb" />
+    <Compile Include="Framwork\Tweening\ShaderTransition.vb" />
+    <Compile Include="Framwork\Tweening\TimerTransition.vb" />
+    <Compile Include="Framwork\Tweening\Transition.vb" />
+    <Compile Include="Framwork\Tweening\TransitionChain.vb" />
+    <Compile Include="Framwork\Tweening\TransitionElement.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Acceleration.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Bounce.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_CriticalDamping.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Deceleration.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_EaseInEaseOut.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Flash.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Linear.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Swing.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_ThrowAndCatch.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_UserDefined.vb" />
+    <Compile Include="Framwork\Tweening\TweenManager.vb" />
     <Compile Include="GameRoom.vb" />
     <Compile Include="GameInstance.vb" />
     <Compile Include="Player.vb" />
@@ -61,11 +105,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="3D Playing piece rendering.txt" />
     <Content Include="Icon.ico" />
     <Content Include="ToDo.txt" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="Betreten_Verboten.Framework.Misc" />
+    <Import Include="System" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
   <Import Project="$(MSBuildExtensionsPath)\MonoGame\v3.0\MonoGame.Content.Builder.targets" />

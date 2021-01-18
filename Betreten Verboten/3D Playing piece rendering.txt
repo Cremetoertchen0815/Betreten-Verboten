@@ -1,0 +1,37 @@
+﻿---VARS---
+
+    Private stl As STLDefinition.STLObject
+    Private eff As BasicEffect
+
+---LOADING---
+
+
+        stl = STLDefinition.LoadSTL(New StreamReader("Content\mesh\Playing_Piece.stl").BaseStream)
+
+        eff = New BasicEffect(Graphics.GraphicsDevice) With {.Alpha = 1.0F,
+            .VertexColorEnabled = True,
+            .LightingEnabled = True, '// turn on the lighting subsystem.
+            .AmbientLightColor = New Vector3(0.1F, 0.1F, 0.1F),
+            .EmissiveColor = New Vector3(0.2F, 0.2F, 0.2F),
+            .PreferPerPixelLighting = True
+        }
+
+        eff.DirectionalLight0.DiffuseColor = New Vector3(0.2F, 0.2F, 0.2F) '// a gray light
+        eff.DirectionalLight0.Direction = New Vector3(0, -1, 0)
+        eff.DirectionalLight0.SpecularColor = New Vector3(1, 1, 1) '// with white highlights
+
+---DRAWING---
+
+
+        GraphicsDevice.RasterizerState = RasterizerState.CullNone
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default
+        eff.World = stl.STLHeader.CenterMatrix * Matrix.CreateScale(30) * Matrix.CreateRotationX(MathHelper.ToRadians(90.0F)) * Matrix.CreateRotationY(MathHelper.ToRadians(-90.0F))
+        eff.View = Matrix.CreateLookAt(New Vector3(600, 1000, 1), New Vector3(20, 0, 0), Vector3.Up)
+        eff.Projection = Matrix.CreateOrthographic(GameSize.X, GameSize.Y, 1.0F, 10000.0F)
+
+        For Each pass As EffectPass In eff.CurrentTechnique.Passes
+            pass.Apply()
+
+            Graphics.GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, stl.Vertices, 0, stl.STLHeader.nfacets, VertexPositionColorNormal.VertexDeclaration)
+        Next
+

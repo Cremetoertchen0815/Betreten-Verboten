@@ -9,7 +9,7 @@ Imports Microsoft.Xna.Framework.Input
 Public Class GameRoom
 
     'Spiele-Flags und Variables
-    Private Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche SPieler, die an dieser Runde teilnehmen
+    Private Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
     Private SpielerIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     Private Status As SpielStatus
     Private WürfelWert As Integer
