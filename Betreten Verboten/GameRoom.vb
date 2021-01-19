@@ -91,11 +91,12 @@ Public Class GameRoom
     Friend Sub Update(ByVal gameTime As GameTime)
         Dim mstate As MouseState = Mouse.GetState()
         Dim kstate As KeyboardState = Keyboard.GetState()
+        Dim mpos As Point = Vector2.Transform(mstate.Position.ToVector2, Matrix.Invert(ScaleMatrix)).ToPoint
 
         Select Case Status
             Case SpielStatus.Würfel
                 'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
-                Dim WürfelBtnGedrückt As Boolean = New Rectangle(1570, 700, 300, 300).Contains(mstate.Position) And mstate.LeftButton = ButtonState.Pressed
+                Dim WürfelBtnGedrückt As Boolean = New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed
 
                 'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
                 If WürfelBtnGedrückt Then
@@ -142,6 +143,12 @@ Public Class GameRoom
             End If
             chatbtnpressed = False
         End If
+    End Sub
+    Private Sub OptionsButton() Handles HUDBtnB.Clicked
+
+    End Sub
+    Private Sub AngerButton() Handles HUDBtnC.Clicked
+
     End Sub
 #End Region
 
