@@ -1,7 +1,8 @@
-﻿Imports System
-Imports Microsoft.Xna.Framework
+﻿Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
+Imports Betreten_Verboten.Framework.Graphics
+Imports Betreten_Verboten.Framework.UI
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -20,6 +21,15 @@ Public Class GameRoom
     Private WürfelRahmen As Texture2D
     Private RNG As Random 'Zufallsgenerator
 
+    'HUD
+    Private HUD As GuiSystem
+    Private HUDBtnA As Controls.Button
+    Private HUDBtnB As Controls.Button
+    Private HUDBtnC As Controls.Button
+
+    'Rendering
+    Private rt As RenderTarget2D
+
     Friend Sub Init()
         'Bereite Flags und Variablen vor
         Status = SpielStatus.WarteAufOnlineSpieler
@@ -33,12 +43,40 @@ Public Class GameRoom
         WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
         RNG = New Random()
+
+        'Lade HUD
+        HUD = New GuiSystem
+        HUDBtnA = New Controls.Button("Exit", New Vector2(80, 100), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnA)
+        HUDBtnB = New Controls.Button("Options", New Vector2(80, 300), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnB)
+        HUDBtnC = New Controls.Button("Anger", New Vector2(80, 500), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnC)
+        HUD.Init()
+
+        'Bereite das Rendering vor
+        rt = New RenderTarget2D(Dev, GameSize.X, GameSize.Y, False, SurfaceFormat.Color, DepthFormat.Depth24)
+        ScaleMatrix = Matrix.CreateScale(Dev.Viewport.Width / GameSize.X, Dev.Viewport.Height / GameSize.Y, 1)
     End Sub
 
     Friend Sub Draw(ByVal gameTime As GameTime)
-        SpriteBatch.Begin()
+        'Setze das Render-Ziel zunächst auf das RenderTarget "rt", um später PPFX(post processing effects) hinzuzufügen zu können
+        Dev.SetRenderTarget(rt)
+        Dev.Clear(Color.Black)
+
+        'Zeichne HUD
+        SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
         SpriteBatch.Draw(WürfelAugen, New Rectangle(100, 100, 250, 250), GetWürfelSourceRectangle(WürfelWert), Color.White)
         SpriteBatch.Draw(WürfelRahmen, New Rectangle(100, 100, 250, 250), Color.White)
+
+        For i As Integer = 0 To 5
+            DrawCircle(New Vector2(300, 100 * i), 5, 20, Color.BlanchedAlmond)
+        Next
+        SpriteBatch.End()
+
+        HUD.Draw(gameTime)
+
+
+        Dev.SetRenderTarget(Nothing) 'Setze des Render-Ziel auf den Backbuffer, aka den "Bildschirm"
+        SpriteBatch.Begin(SpriteSortMode.Deferred, Nothing, SamplerState.AnisotropicClamp)
+        SpriteBatch.Draw(rt, New Rectangle(0, 0, Dev.Viewport.Width, Dev.Viewport.Height), Color.White)
         SpriteBatch.End()
     End Sub
 
@@ -77,6 +115,8 @@ Public Class GameRoom
                 SpielerIndex = 0
                 WürfelWert = 0
         End Select
+
+        HUD.Update(gameTime, mstate, Matrix.Identity)
     End Sub
 
 #Region "Hilfsfunktionen"

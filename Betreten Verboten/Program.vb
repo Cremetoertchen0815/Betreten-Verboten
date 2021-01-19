@@ -16,6 +16,9 @@ Public Module Program
     Friend Property GameSize As Vector2 = New Vector2(1920, 1080)
     Friend Property ReferencePixel As Texture2D
     Friend Property Automator As TweenManager
+    Friend Property Dev As GraphicsDevice
+    Friend Property ScaleMatrix As Matrix
+    Friend Property DefaultFont As SpriteFont
 
     ''' <summary>
     ''' Hier steigt die Anwendung ein.

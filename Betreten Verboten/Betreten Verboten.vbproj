@@ -91,6 +91,20 @@
     <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_ThrowAndCatch.vb" />
     <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_UserDefined.vb" />
     <Compile Include="Framwork\Tweening\TweenManager.vb" />
+    <Compile Include="Framwork\UI\ControlBorder.vb" />
+    <Compile Include="Framwork\UI\Controls\Button.vb" />
+    <Compile Include="Framwork\UI\Controls\CustomControl.vb" />
+    <Compile Include="Framwork\UI\Controls\FoldableContainer.vb" />
+    <Compile Include="Framwork\UI\Controls\Label.vb" />
+    <Compile Include="Framwork\UI\Controls\ListBox.vb" />
+    <Compile Include="Framwork\UI\Controls\NumericUpDown.vb" />
+    <Compile Include="Framwork\UI\Controls\SimpleContainer.vb" />
+    <Compile Include="Framwork\UI\Controls\Textbox.vb" />
+    <Compile Include="Framwork\UI\Controls\VerticalAlignContainer.vb" />
+    <Compile Include="Framwork\UI\GuiControl.vb" />
+    <Compile Include="Framwork\UI\GuiInput.vb" />
+    <Compile Include="Framwork\UI\GuiSystem.vb" />
+    <Compile Include="Framwork\UI\IParent.vb" />
     <Compile Include="GameRoom.vb" />
     <Compile Include="GameInstance.vb" />
     <Compile Include="Player.vb" />
@@ -114,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <Import Include="Betreten_Verboten.Framework.Misc" />
+    <Import Include="Betreten_Verboten.Program" />
     <Import Include="System" />
   </ItemGroup>
   <ItemGroup>
