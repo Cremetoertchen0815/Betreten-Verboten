@@ -48,9 +48,9 @@ Public Class GameRoom
 
         'Lade HUD
         HUD = New GuiSystem
-        HUDBtnA = New Controls.Button("Exit", New Vector2(80, 100), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
-        HUDBtnB = New Controls.Button("Options", New Vector2(80, 300), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
-        HUDBtnC = New Controls.Button("Anger", New Vector2(80, 500), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
+        HUDBtnA = New Controls.Button("Exit", New Vector2(50, 50), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
+        HUDBtnB = New Controls.Button("Options", New Vector2(50, 200), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
+        HUDBtnC = New Controls.Button("Anger", New Vector2(50, 350), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
         HUD.Init()
 
         'Bereite das Rendering vor
@@ -65,8 +65,8 @@ Public Class GameRoom
 
         'Zeichne HUD
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-        SpriteBatch.Draw(WürfelAugen, New Rectangle(2000, 700, 350, 350), GetWürfelSourceRectangle(WürfelWert), Color.White)
-        SpriteBatch.Draw(WürfelRahmen, New Rectangle(2000, 700, 350, 350), Color.White)
+        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 730, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.White)
+        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 730, 300, 300), Color.White)
         SpriteBatch.End()
 
         HUD.Draw(gameTime)
@@ -74,7 +74,7 @@ Public Class GameRoom
 
         Dev.SetRenderTarget(Nothing) 'Setze des Render-Ziel auf den Backbuffer, aka den "Bildschirm"
         SpriteBatch.Begin(SpriteSortMode.Deferred, Nothing, SamplerState.AnisotropicClamp)
-        SpriteBatch.Draw(rt, New Rectangle(0, 0, Dev.Viewport.Width, Dev.Viewport.Height), Color.White)
+        SpriteBatch.Draw(rt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
         SpriteBatch.End()
     End Sub
 

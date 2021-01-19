@@ -2,7 +2,7 @@
 <XnaContent xmlns:Graphics="Microsoft.Xna.Framework.Content.Pipeline.Graphics">
   <Asset Type="Graphics:FontDescription">
    <FontName>Blueberry.ttf</FontName>
-   <Size>45</Size>
+   <Size>40</Size>
    <Spacing>5</Spacing>
    <UseKerning>true</UseKerning>
    <Style>Regular</Style>
