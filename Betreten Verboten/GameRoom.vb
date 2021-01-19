@@ -95,7 +95,7 @@ Public Class GameRoom
         Select Case Status
             Case SpielStatus.Würfel
                 'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
-                Dim WürfelBtnGedrückt As Boolean = New Rectangle(0, 0, 100, 100).Contains(mstate.Position) And mstate.LeftButton = ButtonState.Pressed
+                Dim WürfelBtnGedrückt As Boolean = New Rectangle(1570, 700, 300, 300).Contains(mstate.Position) And mstate.LeftButton = ButtonState.Pressed
 
                 'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
                 If WürfelBtnGedrückt Then
