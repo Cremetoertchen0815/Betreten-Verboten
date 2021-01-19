@@ -1,4 +1,2 @@
 ﻿-Implementiere Würfel-Logik
 -Implementiere Spielfeld-Logik
-soos
-Tach Mirco
