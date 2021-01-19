@@ -20,6 +20,13 @@
 /processorParam:TextureFormat=Compressed
 /build:font/ButtonText.spritefont
 
+#begin font/ChatText.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:font/ChatText.spritefont
+
 #begin font/fnt_HKG_17_M.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor

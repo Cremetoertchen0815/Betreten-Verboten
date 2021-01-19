@@ -3,6 +3,7 @@ Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
 Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.UI
+Imports System.Collections.Generic
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -20,13 +21,17 @@ Public Class GameRoom
     Private WürfelAugen As Texture2D
     Private WürfelRahmen As Texture2D
     Private ButtonFont As SpriteFont
+    Private ChatFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
 
     'HUD
-    Private HUD As GuiSystem
-    Private HUDBtnA As Controls.Button
-    Private HUDBtnB As Controls.Button
-    Private HUDBtnC As Controls.Button
+    Private WithEvents HUD As GuiSystem
+    Private WithEvents HUDBtnA As Controls.Button
+    Private WithEvents HUDBtnB As Controls.Button
+    Private WithEvents HUDBtnC As Controls.Button
+    Private WithEvents HUDChat As Controls.TextscrollBox
+    Private WithEvents HUDChatBtn As Controls.Button
+    Private Chat As List(Of String)
 
     'Renderingtt
     Private rt As RenderTarget2D
@@ -37,6 +42,7 @@ Public Class GameRoom
         WürfelTimer = 0
         'DEBUG: Setze sinnvolle Werte in Variablen ein, da das Menu noch nicht funktioniert.
         Spielers = {New Player, New Player, New Player, New Player}
+        Chat = New List(Of String)
     End Sub
 
     Friend Sub LoadContent()
@@ -44,13 +50,16 @@ Public Class GameRoom
         WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
         ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
+        ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
         RNG = New Random()
 
         'Lade HUD
         HUD = New GuiSystem
-        HUDBtnA = New Controls.Button("Exit", New Vector2(50, 50), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
-        HUDBtnB = New Controls.Button("Options", New Vector2(50, 200), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
-        HUDBtnC = New Controls.Button("Anger", New Vector2(50, 350), New Vector2(350, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
+        HUDBtnA = New Controls.Button("Exit", New Vector2(1500, 50), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
+        HUDBtnB = New Controls.Button("Options", New Vector2(1500, 200), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
+        HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
+        HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 900)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
+        HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 970), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
         HUD.Init()
 
         'Bereite das Rendering vor
@@ -65,8 +74,9 @@ Public Class GameRoom
 
         'Zeichne HUD
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 730, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.White)
-        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 730, 300, 300), Color.White)
+        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.White)
+        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.White)
+        FillRectangle(New Rectangle(500, 50, 950, 950), Color.White)
         SpriteBatch.End()
 
         HUD.Draw(gameTime)
@@ -116,6 +126,24 @@ Public Class GameRoom
 
         HUD.Update(gameTime, mstate, Matrix.Identity)
     End Sub
+
+#Region "Knopfgedrücke"
+    Private Sub ExitButton() Handles HUDBtnA.Clicked
+        GameClassInstance.Exit()
+    End Sub
+
+    Dim chatbtnpressed As Boolean = False
+    Private Sub ChatSendButton() Handles HUDChatBtn.Clicked
+        If Not chatbtnpressed Then
+            chatbtnpressed = True
+            Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
+            If txt <> "" Then
+                Chat.Add("[User]: " & txt)
+            End If
+            chatbtnpressed = False
+        End If
+    End Sub
+#End Region
 
 #Region "Hilfsfunktionen"
     Private Function GetWürfelSourceRectangle(augenzahl As Integer) As Rectangle

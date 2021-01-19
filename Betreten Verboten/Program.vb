@@ -19,6 +19,7 @@ Public Module Program
     Friend Property Dev As GraphicsDevice
     Friend Property ScaleMatrix As Matrix
     Friend Property DefaultFont As SpriteFont
+    Friend Property GameClassInstance As GameInstance
 
     ''' <summary>
     ''' Hier steigt die Anwendung ein.
@@ -26,8 +27,8 @@ Public Module Program
     <STAThread>
     Friend Sub Main()
         'Using-Block gibt nach Beendigung des Spiels Resourcen frei und ruft game.Dispose() auf.
-        Using game As New GameInstance 'Erstelle neue Spielinstanz
-            game.Run() 'Führe Spiel aus.
-        End Using
+        GameClassInstance = New GameInstance
+        GameClassInstance.Run() 'Führe Spiel aus.
+        GameClassInstance.Dispose()
     End Sub
 End Module
