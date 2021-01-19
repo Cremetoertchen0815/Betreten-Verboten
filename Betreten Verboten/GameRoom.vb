@@ -33,6 +33,11 @@ Public Class GameRoom
     Private WithEvents HUDChatBtn As Controls.Button
     Private Chat As List(Of String)
 
+    'Spielfeld
+    Private Const FDist As Integer = 85
+    Private Feld As Rectangle
+    Private Center As Vector2
+
     'Renderingtt
     Private rt As RenderTarget2D
 
@@ -62,6 +67,10 @@ Public Class GameRoom
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 970), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
         HUD.Init()
 
+        'Lade Spielfeld
+        Feld = New Rectangle(500, 50, 950, 950)
+        Center = Feld.Center.ToVector2
+
         'Bereite das Rendering vor
         rt = New RenderTarget2D(Dev, GameSize.X, GameSize.Y, False, SurfaceFormat.Color, DepthFormat.Depth24)
         ScaleMatrix = Matrix.CreateScale(Dev.Viewport.Width / GameSize.X, Dev.Viewport.Height / GameSize.Y, 1)
@@ -74,9 +83,37 @@ Public Class GameRoom
 
         'Zeichne HUD
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.White)
-        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.White)
-        FillRectangle(New Rectangle(500, 50, 950, 950), Color.White)
+        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.Yellow)
+        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.GreenYellow)
+        DrawRectangle(Feld, Color.White)
+
+        'Draw fields
+        Dim fields As New List(Of Vector2)
+        Dim transmatrices As Matrix() = {Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi), Matrix.CreateRotationZ(MathHelper.PiOver2 * 3)}
+        Dim playcolor As Color() = {Color.Blue, Color.Lime, Color.Cyan, Color.Yellow}
+        For j = 0 To 3
+            For i = 0 To 17
+                Dim loc As Vector2 = Center + Vector2.Transform(GetSpielfeldPositionen(i), transmatrices(j))
+                Select Case i
+                    Case PlayFieldPos.Haus1, PlayFieldPos.Haus2, PlayFieldPos.Haus3, PlayFieldPos.Haus4, PlayFieldPos.Home1, PlayFieldPos.Home2, PlayFieldPos.Home3, PlayFieldPos.Home4
+                        DrawCircle(loc, 20, 25, playcolor(j), 2)
+                    Case PlayFieldPos.Feld1
+                        DrawCircle(loc, 28, 30, playcolor(j), 3)
+                        fields.Add(loc)
+                    Case Else
+                        DrawCircle(loc, 28, 30, Color.White, 3)
+                        fields.Add(loc)
+                End Select
+            Next
+        Next
+
+        'Draw connecting lines
+        For i = 0 To fields.Count - 1
+            Dim p1 As Vector2 = fields(i)
+            Dim p2 As Vector2 = If(i = fields.Count - 1, fields(0), fields(i + 1))
+            DrawLine({p1, p2}, Color.White, 1)
+        Next
+
         SpriteBatch.End()
 
         HUD.Draw(gameTime)
@@ -169,6 +206,49 @@ Public Class GameRoom
                 Return New Rectangle(520, 260, 260, 260)
             Case Else
                 Return New Rectangle(0, 0, 0, 0)
+        End Select
+    End Function
+
+    Private Function GetSpielfeldPositionen(ps As PlayfieldPos) As Vector2
+        Select Case ps
+            Case PlayFieldPos.Home1
+                Return New Vector2(-420, -420)
+            Case PlayFieldPos.Home2
+                Return New Vector2(-350, -420)
+            Case PlayFieldPos.Home3
+                Return New Vector2(-420, -350)
+            Case PlayFieldPos.Home4
+                Return New Vector2(-350, -350)
+            Case PlayFieldPos.Haus1
+                Return New Vector2(-FDist * 4, 0)
+            Case PlayFieldPos.Haus2
+                Return New Vector2(-FDist * 3, 0)
+            Case PlayFieldPos.Haus3
+                Return New Vector2(-FDist * 2, 0)
+            Case PlayFieldPos.Haus4
+                Return New Vector2(-FDist, 0)
+            Case PlayFieldPos.Feld1
+                Return New Vector2(-FDist * 5, -FDist)
+            Case PlayFieldPos.Feld2
+                Return New Vector2(-FDist * 4, -FDist)
+            Case PlayFieldPos.Feld3
+                Return New Vector2(-FDist * 3, -FDist)
+            Case PlayFieldPos.Feld4
+                Return New Vector2(-FDist * 2, -FDist)
+            Case PlayFieldPos.Feld5
+                Return New Vector2(-FDist, -FDist)
+            Case PlayFieldPos.Feld6
+                Return New Vector2(-FDist, -FDist * 2)
+            Case PlayFieldPos.Feld7
+                Return New Vector2(-FDist, -FDist * 3)
+            Case PlayFieldPos.Feld8
+                Return New Vector2(-FDist, -FDist * 4)
+            Case PlayFieldPos.Feld9
+                Return New Vector2(-FDist, -FDist * 5)
+            Case PlayFieldPos.Feld10
+                Return New Vector2(0, -FDist * 5)
+            Case Else
+                Return Vector2.Zero
         End Select
     End Function
 #End Region
