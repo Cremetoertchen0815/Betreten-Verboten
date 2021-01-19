@@ -27,7 +27,7 @@ Public Class GameRoom
     Private HUDBtnB As Controls.Button
     Private HUDBtnC As Controls.Button
 
-    'Rendering
+    'Renderingtt
     Private rt As RenderTarget2D
 
     Friend Sub Init()
