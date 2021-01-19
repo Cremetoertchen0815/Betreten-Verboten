@@ -19,6 +19,7 @@ Public Class GameRoom
     'Assets
     Private WürfelAugen As Texture2D
     Private WürfelRahmen As Texture2D
+    Private ButtonFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
 
     'HUD
@@ -42,13 +43,14 @@ Public Class GameRoom
         'Lade Assets
         WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
+        ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
         RNG = New Random()
 
         'Lade HUD
         HUD = New GuiSystem
-        HUDBtnA = New Controls.Button("Exit", New Vector2(80, 100), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnA)
-        HUDBtnB = New Controls.Button("Options", New Vector2(80, 300), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnB)
-        HUDBtnC = New Controls.Button("Anger", New Vector2(80, 500), New Vector2(550, 180)) : HUD.Controls.Add(HUDBtnC)
+        HUDBtnA = New Controls.Button("Exit", New Vector2(80, 100), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
+        HUDBtnB = New Controls.Button("Options", New Vector2(80, 300), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
+        HUDBtnC = New Controls.Button("Anger", New Vector2(80, 500), New Vector2(550, 180)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
         HUD.Init()
 
         'Bereite das Rendering vor
@@ -63,12 +65,8 @@ Public Class GameRoom
 
         'Zeichne HUD
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-        SpriteBatch.Draw(WürfelAugen, New Rectangle(100, 100, 250, 250), GetWürfelSourceRectangle(WürfelWert), Color.White)
-        SpriteBatch.Draw(WürfelRahmen, New Rectangle(100, 100, 250, 250), Color.White)
-
-        For i As Integer = 0 To 5
-            DrawCircle(New Vector2(300, 100 * i), 5, 20, Color.BlanchedAlmond)
-        Next
+        SpriteBatch.Draw(WürfelAugen, New Rectangle(2000, 700, 350, 350), GetWürfelSourceRectangle(WürfelWert), Color.White)
+        SpriteBatch.Draw(WürfelRahmen, New Rectangle(2000, 700, 350, 350), Color.White)
         SpriteBatch.End()
 
         HUD.Draw(gameTime)

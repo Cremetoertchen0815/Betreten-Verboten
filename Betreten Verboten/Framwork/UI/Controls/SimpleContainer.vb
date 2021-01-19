@@ -20,7 +20,7 @@ Namespace Framework.UI.Controls
         End Sub
 
         Public Overrides Sub Init(system As IParent)
-            Font = system.Font
+            If Font Is Nothing Then Font = system.Font
             par = system
 
             For Each element In Me.Children
