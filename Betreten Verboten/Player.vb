@@ -26,6 +26,6 @@ Public Class Player
     ''' Positionen der Spielfiguren relativ zur Homebase angegeben(-1 = Homebase, 0 = Start-Feld, 1 = erstes Feld nach Start-Feld, ..., 39 = letztes Feld vor Start-Feld, 40 = erstes Feld im Haus, ..., 43 = letztes Feld in Haus)!
     ''' </summary>
     ''' <returns></returns>
-    Public Property Spielfiguren As Integer() = {0, 0, 0, 0}
+    Public Property Spielfiguren As Integer() = {-1, 39, 40, 41}
 
 End Class

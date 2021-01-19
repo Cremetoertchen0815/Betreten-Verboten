@@ -37,6 +37,8 @@ Public Class GameRoom
     Private Const FDist As Integer = 85
     Private Feld As Rectangle
     Private Center As Vector2
+    Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
+    Private playcolor As Color() = {Color.Blue, Color.Lime, Color.Cyan, Color.Yellow}
 
     'Renderingtt
     Private rt As RenderTarget2D
@@ -89,9 +91,8 @@ Public Class GameRoom
 
         'Draw fields
         Dim fields As New List(Of Vector2)
-        Dim transmatrices As Matrix() = {Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi), Matrix.CreateRotationZ(MathHelper.PiOver2 * 3)}
-        Dim playcolor As Color() = {Color.Blue, Color.Lime, Color.Cyan, Color.Yellow}
         For j = 0 To 3
+            'Zeichne Spielfeld
             For i = 0 To 17
                 Dim loc As Vector2 = Center + Vector2.Transform(GetSpielfeldPositionen(i), transmatrices(j))
                 Select Case i
@@ -107,11 +108,21 @@ Public Class GameRoom
             Next
         Next
 
-        'Draw connecting lines
-        For i = 0 To fields.Count - 1
-            Dim p1 As Vector2 = fields(i)
-            Dim p2 As Vector2 = If(i = fields.Count - 1, fields(0), fields(i + 1))
-            DrawLine({p1, p2}, Color.White, 1)
+        'Zeichne Spielfiguren
+        For j = 0 To 3
+            Dim pl As Player = Spielers(j)
+            For k As Integer = 0 To 3
+                Dim chr As Integer = pl.Spielfiguren(k)
+                Select Case chr
+                    Case -1 'Zeichne Figur in Homebase
+                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(k), transmatrices(j)), playcolor(j))
+                    Case 40, 41, 42, 43 'Zeichne Figur in Homebase
+                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(j)), playcolor(j))
+                    Case Else
+                        Dim matrx As Matrix = transmatrices((j + Math.Floor(chr / 10)) Mod 4)
+                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx), playcolor(j))
+                End Select
+            Next
         Next
 
         SpriteBatch.End()
@@ -123,6 +134,10 @@ Public Class GameRoom
         SpriteBatch.Begin(SpriteSortMode.Deferred, Nothing, SamplerState.AnisotropicClamp)
         SpriteBatch.Draw(rt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
         SpriteBatch.End()
+    End Sub
+
+    Private Sub DrawChr(vc As Vector2, color As Color)
+        FillRectangle(New Rectangle(vc.X - 10, vc.Y - 10, 20, 20), color)
     End Sub
 
     Friend Sub Update(ByVal gameTime As GameTime)
