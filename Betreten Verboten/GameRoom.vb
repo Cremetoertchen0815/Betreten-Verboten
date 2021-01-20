@@ -110,7 +110,6 @@ Public Class GameRoom
         Bloom.BloomStrengthMultiplier = 0.63
         Bloom.BloomThreshold = 0
         Bloom.BloomUseLuminance = True
-        UserIndex = 1
 
         'Draw fields
         Dim fields As New List(Of Vector2)
@@ -150,10 +149,20 @@ Public Class GameRoom
         Next
 
 
-        'Zeichne Würfel
-        If ShowDice Then
+        'Zeichne Haupt-Würfel
+        If ShowDice Or True Then
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.Lerp(HUDColor, Color.White, 0.4))
+        End If
+        'Zeichne Mini-Würfel
+        If WürfelWert <> 0 Then
+            Dim xoffset As Integer = If(WürfelZweiter <> 0, 80, 0)
+            SpriteBatch.Draw(WürfelAugen, New Rectangle(1650 + xoffset, 600, 50, 50), GetWürfelSourceRectangle(WürfelWert), HUDColor)
+            SpriteBatch.Draw(WürfelRahmen, New Rectangle(1650 + xoffset, 600, 50, 50), Color.Lerp(HUDColor, Color.White, 0.4))
+        End If
+        If WürfelZweiter <> 0 Then
+            SpriteBatch.Draw(WürfelAugen, New Rectangle(1650, 600, 50, 50), GetWürfelSourceRectangle(WürfelZweiter), HUDColor)
+            SpriteBatch.Draw(WürfelRahmen, New Rectangle(1650, 600, 50, 50), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
         'DrawRectangle(Feld, Color.White)
 
@@ -204,8 +213,8 @@ Public Class GameRoom
 
                         If WürfelZweiter = 0 Then 'Soeben gewürfelter Wurf ist der Erste
                             'Speicher ersten Würfelwert zwischen und nach kurzer Pause, erwarte zweiten Würfel-Wurf
-                            WürfelZweiter = WürfelWert
                             Automator.Add(New TimerTransition(1000, Sub()
+                                                                        WürfelZweiter = WürfelWert
                                                                         StopUpdating = False
                                                                         WürfelWert = 0
                                                                     End Sub))
