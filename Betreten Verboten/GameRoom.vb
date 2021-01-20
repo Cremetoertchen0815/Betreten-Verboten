@@ -4,6 +4,7 @@ Imports Microsoft.Xna.Framework.Input
 Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.UI
 Imports System.Collections.Generic
+Imports Betreten_Verboten.Framework.Tweening
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -14,9 +15,10 @@ Public Class GameRoom
     Private Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
     Private SpielerIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     Private UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
-    Private Status As SpielStatus
-    Private WürfelWert As Integer
-    Private WürfelTimer As Double
+    Private Status As SpielStatus 'Speichert den aktuellen Status des Spiels
+    Private WürfelWert As Integer 'Speichert zu erst den Wert des ersten, nach erneutem Würfeln den Wert des zweiten Würfels
+    Private WürfelZweiter As Integer = 0 'Speichert den Wert des ersten Würfels zwischen, währen der zweite Gewürfelt wird
+    Private WürfelTimer As Double 'Implementiert einen Cooldown für die Würfelanimation
 
     'Assets
     Private WürfelAugen As Texture2D
@@ -32,6 +34,9 @@ Public Class GameRoom
     Private WithEvents HUDBtnC As Controls.Button
     Private WithEvents HUDChat As Controls.TextscrollBox
     Private WithEvents HUDChatBtn As Controls.Button
+    Private WithEvents HUDInstruction As Controls.Button
+    Private ShowDice As Boolean = False
+    Private HUDColor As Color
     Private Chat As List(Of (String, Color))
 
     'Spielfeld
@@ -84,11 +89,7 @@ Public Class GameRoom
         Dev.SetRenderTarget(rt)
         Dev.Clear(Color.Black)
 
-        'Zeichne HUD
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-        SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), Color.Yellow)
-        SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.GreenYellow)
-        DrawRectangle(Feld, Color.White)
 
         'Draw fields
         Dim fields As New List(Of Vector2)
@@ -126,6 +127,14 @@ Public Class GameRoom
             Next
         Next
 
+
+        'Zeichne Würfel
+        If ShowDice Then
+            SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), HUDColor)
+            SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), HUDColor)
+        End If
+        'DrawRectangle(Feld, Color.White)
+
         SpriteBatch.End()
 
         HUD.Draw(gameTime)
@@ -159,8 +168,13 @@ Public Class GameRoom
                         WürfelTimer = 0
                         WürfelWert = RNG.Next(1, 7)
                     End If
-                ElseIf Not WürfelBtnGedrückt And WürfelWert > 0 Then 'Wenn Knopf losgelassen wurde, fahre fort mit der Figurwahl
-                    Status = SpielStatus.WähleFigur
+                ElseIf Not WürfelBtnGedrückt And WürfelWert > 0 Then
+                    'Wenn Knopf losgelassen wurde, fahre fort mit der Figurwahl(nach kurzem delay)
+                    Automator.Add(New TimerTransition(800, Sub()
+                                                               Status = SpielStatus.WähleFigur
+                                                               ShowDice = False
+                                                           End Sub))
+
                 End If
             Case SpielStatus.WähleFigur
 
@@ -173,10 +187,15 @@ Public Class GameRoom
                 Next
 
                 'Falls vollzählig, starte Spiel
-                Status = SpielStatus.Würfel
-                SpielerIndex = 0
-                WürfelWert = 0
         End Select
+
+        'Set HUD color
+        HUDColor = playcolor(UserIndex)
+        HUDBtnA.Color = HUDColor : HUDBtnA.Border = New ControlBorder(HUDColor, HUDBtnA.Border.Width)
+        HUDBtnB.Color = HUDColor : HUDBtnB.Border = New ControlBorder(HUDColor, HUDBtnB.Border.Width)
+        HUDBtnC.Color = HUDColor : HUDBtnC.Border = New ControlBorder(HUDColor, HUDBtnC.Border.Width)
+        HUDChat.Color = HUDColor : HUDChat.Border = New ControlBorder(HUDColor, HUDChat.Border.Width)
+        HUDChatBtn.Color = HUDColor : HUDChatBtn.Border = New ControlBorder(HUDColor, HUDChatBtn.Border.Width)
 
         HUD.Update(gameTime, mstate, Matrix.Identity)
     End Sub
@@ -225,7 +244,7 @@ Public Class GameRoom
         End Select
     End Function
 
-    Private Function GetSpielfeldPositionen(ps As PlayfieldPos) As Vector2
+    Private Function GetSpielfeldPositionen(ps As PlayFieldPos) As Vector2
         Select Case ps
             Case PlayFieldPos.Home1
                 Return New Vector2(-420, -420)
@@ -270,6 +289,14 @@ Public Class GameRoom
 
     Private Sub PostChat(txt As String, color As Color)
         Chat.Add((txt, color))
+    End Sub
+
+    Private Sub SwitchPlayer(indx As Integer)
+        Status = SpielStatus.Würfel
+        SpielerIndex = indx
+        WürfelWert = 0
+        ShowDice = True
+        PostChat("It's Player " & indx.ToString & "'s Turn!", Color.White)
     End Sub
 #End Region
 
