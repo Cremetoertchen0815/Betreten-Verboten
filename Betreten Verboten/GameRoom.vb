@@ -14,7 +14,7 @@ Public Class GameRoom
 
     'Spiele-Flags und Variables
     Private Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
-    Private SpielerIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
+    Private SpielerIndex As Integer = -1 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     Private UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
     Private Status As SpielStatus 'Speichert den aktuellen Status des Spiels
     Private WürfelWert As Integer 'Speichert zu erst den Wert des ersten, nach erneutem Würfeln den Wert des zweiten Würfels
@@ -48,7 +48,9 @@ Public Class GameRoom
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
     Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Yellow}
-    Private SelectFader As Transition(Of Single)
+    Private SelectFader As Transition(Of Single) 'Fader, welcher die zur Auswahl stehenden Figuren blinken lässt
+    Private FigurFader As Transition(Of Integer) 'Fader, welcher die Figuren über das Spielfeld bewegt
+    Private FigurFaderZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
 
     'Renderingtt
     Private rt As RenderTarget2D
@@ -150,17 +152,17 @@ Public Class GameRoom
 
 
         'Zeichne Haupt-Würfel
-        If ShowDice Or True Then
+        If ShowDice Then
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelWert), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
         'Zeichne Mini-Würfel
-        If WürfelWert <> 0 Then
+        If WürfelWert <> 0 And SpielerIndex = UserIndex Then
             Dim xoffset As Integer = If(WürfelZweiter <> 0, 80, 0)
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1650 + xoffset, 600, 50, 50), GetWürfelSourceRectangle(WürfelWert), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1650 + xoffset, 600, 50, 50), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
-        If WürfelZweiter <> 0 Then
+        If WürfelZweiter <> 0 And SpielerIndex = UserIndex Then
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1650, 600, 50, 50), GetWürfelSourceRectangle(WürfelZweiter), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1650, 600, 50, 50), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
@@ -220,18 +222,17 @@ Public Class GameRoom
                                                                     End Sub))
                         Else 'Soeben gewürfelter Wurf ist der Zweite
                             'Wenn Knopf losgelassen wurde, fahre fort mit der Figurwahl(nach kurzem delay)
-                            Automator.Add(New TimerTransition(1000, Sub()
-                                                                        Status = SpielStatus.WähleFigur
-                                                                        ShowDice = False
-                                                                        HUDInstructions.Text = "Select the piece you want to move!"
-                                                                    End Sub))
+                            Automator.Add(New TimerTransition(1000, AddressOf CalcMoves))
                         End If
 
                     End If
                 Case SpielStatus.WähleFigur
 
                 Case SpielStatus.FahreFelder
-
+                    'Fahre Felder
+                    If FigurFader IsNot Nothing Then Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFader.Value
+                    'Falls die Zug-Animation fertig ist
+                    If FigurFader IsNot Nothing AndAlso FigurFader.State = TransitionState.Done Then SwitchPlayer()
                 Case SpielStatus.WarteAufOnlineSpieler
                     'Prüfe einer die vier Spieler nicht anwesend sind, kehre zurück
                     For Each sp In Spielers
@@ -239,7 +240,7 @@ Public Class GameRoom
                     Next
 
                     'Falls vollzählig, starte Spiel
-                    SwitchPlayer(0)
+                    SwitchPlayer()
             End Select
         End If
 
@@ -254,31 +255,55 @@ Public Class GameRoom
         HUD.Update(gameTime, mstate, Matrix.Identity)
     End Sub
 
-#Region "Knopfgedrücke"
-    Private Sub ExitButton() Handles HUDBtnA.Clicked
-        GameClassInstance.Exit()
-    End Sub
+#Region "Hilfsfunktionen"
+    Private Sub CalcMoves()
+        Dim wurfe As Integer() = {WürfelZweiter, WürfelWert}
+        Dim homebase As Integer = GetHomebaseIndex(SpielerIndex)
+        Dim startfd As Boolean = GetCoveredStartfield(SpielerIndex)
+        ShowDice = False
 
-    Dim chatbtnpressed As Boolean = False
-    Private Sub ChatSendButton() Handles HUDChatBtn.Clicked
-        If Not chatbtnpressed Then
-            chatbtnpressed = True
-            Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
-            If txt <> "" Then
-                PostChat("[" & Spielers(UserIndex).Name & "]: " & txt, HUDColor)
-            End If
-            chatbtnpressed = False
+
+        If (wurfe(0) = 6 Or wurfe(1) = 6) And homebase >= 0 Then 'Setze Figur aufs Feld wenn 6 gewechselt wurde und die Homebase mind. 1 Figur enthällt
+            'Hole Figur aus HOmebase und fahre
+            Status = SpielStatus.FahreFelder
+            Dim directmove As Integer = If(wurfe(0) = 6, wurfe(1), wurfe(0)) 'Finde Zahl des zweiten Würfels
+            HUDInstructions.Text = "Move Character out of your homebase and move him " & directmove & " spaces!"
+            FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(directmove * 500), 0, directmove, Nothing) 'Framework.Scripting.CommandParser.GetPropertyTransition("Spielfiguren(" & homebase & ")", Spielers(0), "Linear", , directmove)
+            FigurFaderZiel = (SpielerIndex, homebase)
+            Automator.Add(FigurFader)
+            StopUpdating = False
+        Else
+            'TODO: Add code for handling normal dice rolls and movement, as well as kicking
+
+            SwitchPlayer()
         End If
     End Sub
-    Private Sub OptionsButton() Handles HUDBtnB.Clicked
 
-    End Sub
-    Private Sub AngerButton() Handles HUDBtnC.Clicked
+    'Gibt den Index ein Spielfigur zurück, die sich noch in der Homebase befindet. Falls keine Figur mehr in der Homebase, gibt die Fnkt. -1 zurück.
+    Private Function GetHomebaseIndex(player As Integer) As Integer
+        For i As Integer = 0 To 3
+            If Spielers(player).Spielfiguren(i) = -1 Then Return i
+        Next
+        Return -1
+    End Function
 
-    End Sub
-#End Region
+    Private Function GetCoveredStartfield(player As Integer) As Boolean
+        Dim fa As Integer = PlayerFieldToGlobalField(0, player)
+        For i As Integer = player To player + 3
+            Dim fb As Integer = PlayerFieldToGlobalField(0, i Mod 4)
+            If fa = fb Then Return True
+        Next
+        Return False
+    End Function
 
-#Region "Hilfsfunktionen"
+    Private Function PlayerFieldToGlobalField(field As Integer, player As Integer) As Integer
+        Return (field + player * 10 - 1) Mod 40 + 1
+    End Function
+
+    Private Function GlobalFieldToPlayerField(field As Integer, player As Integer) As Integer
+        Return (field - player * 10 - 1) Mod 40 + 1
+    End Function
+
     Private Function GetWürfelSourceRectangle(augenzahl As Integer) As Rectangle
         Select Case augenzahl
             Case 1
@@ -345,14 +370,40 @@ Public Class GameRoom
         Chat.Add((txt, color))
     End Sub
 
-    Private Sub SwitchPlayer(indx As Integer)
+    Private Sub SwitchPlayer()
         Status = SpielStatus.Würfel
-        SpielerIndex = indx
+        SpielerIndex = (SpielerIndex + 1) Mod 4
+        UserIndex = SpielerIndex
         WürfelWert = 0
+        WürfelZweiter = 0
         ShowDice = True
         StopUpdating = False
-        PostChat("It's Player " & indx.ToString & "'s Turn!", Color.White)
+        PostChat("It's Player " & (SpielerIndex + 1).ToString & "'s Turn!", Color.White)
         HUDInstructions.Text = "Roll the Dice twice!"
+    End Sub
+#End Region
+
+#Region "Knopfgedrücke"
+    Private Sub ExitButton() Handles HUDBtnA.Clicked
+        GameClassInstance.Exit()
+    End Sub
+
+    Dim chatbtnpressed As Boolean = False
+    Private Sub ChatSendButton() Handles HUDChatBtn.Clicked
+        If Not chatbtnpressed Then
+            chatbtnpressed = True
+            Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
+            If txt <> "" Then
+                PostChat("[" & Spielers(UserIndex).Name & "]: " & txt, HUDColor)
+            End If
+            chatbtnpressed = False
+        End If
+    End Sub
+    Private Sub OptionsButton() Handles HUDBtnB.Clicked
+
+    End Sub
+    Private Sub AngerButton() Handles HUDBtnC.Clicked
+
     End Sub
 #End Region
 

@@ -63,6 +63,8 @@
     <Compile Include="Framwork\Misc\Pool.vb" />
     <Compile Include="Framwork\Misc\StaticFunctions.vb" />
     <Compile Include="Framwork\Misc\TestState.vb" />
+    <Compile Include="Framwork\Scripting\CommandParser.vb" />
+    <Compile Include="Framwork\Scripting\TransitionArgs.vb" />
     <Compile Include="Framwork\Tweening\IManagedType.vb" />
     <Compile Include="Framwork\Tweening\ITransition.vb" />
     <Compile Include="Framwork\Tweening\ITransitionType.vb" />
