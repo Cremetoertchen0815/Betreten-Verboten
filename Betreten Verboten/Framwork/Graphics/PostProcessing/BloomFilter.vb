@@ -188,7 +188,7 @@ Namespace Framework.Graphics.PostProcessing
             UpdateResolution(width, height)
             _quadRenderer = If(quadRenderer, New QuadRenderer(graphicsDevice))
             _renderTargetFormat = renderTargetFormat
-            _bloomEffect = content.Load(Of Effect)("fx\fx_bloom")
+            _bloomEffect = content.Load(Of Effect)("fx/fx_bloom")
             _bloomInverseResolutionParameter = _bloomEffect.Parameters("InverseResolution")
             _bloomRadiusParameter = _bloomEffect.Parameters("Radius")
             _bloomStrengthParameter = _bloomEffect.Parameters("Strength")

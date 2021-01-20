@@ -7,7 +7,7 @@ Public Class Player
     ''' <summary>
     ''' Identifiziert den Spieler in der Anwendung
     ''' </summary>
-    Public Property Name As String
+    Public Property Name As String = "Player"
 
     ''' <summary>
     ''' Deklariert ob der Spieler lokal, durch eine KI, oder über eine Netzwerkverbindung gesteuert wird

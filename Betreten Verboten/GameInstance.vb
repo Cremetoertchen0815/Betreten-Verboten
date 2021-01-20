@@ -19,6 +19,7 @@ Public Class GameInstance
     End Sub
 
     Protected Overrides Sub Initialize()
+        Graphics.GraphicsProfile = GraphicsProfile.HiDef
         Graphics.PreferredDepthStencilFormat = DepthFormat.Depth24
         Graphics.PreferredBackBufferWidth = 1280
         Graphics.PreferredBackBufferHeight = 720
@@ -61,6 +62,9 @@ Public Class GameInstance
 
         'Berechne die Skalierungsmatrix
         ScaleMatrix = Matrix.CreateScale(Dev.Viewport.Width / GameSize.X, Dev.Viewport.Height / GameSize.Y, 1)
+
+        'Update den Tweening-Manager(für Timer und animierte Übergänge)
+        Automator.Update(gameTime)
 
         MyBase.Update(gameTime)
     End Sub
