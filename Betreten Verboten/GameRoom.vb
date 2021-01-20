@@ -20,7 +20,7 @@ Public Class GameRoom
     Private WürfelWert As Integer 'Speichert zu erst den Wert des ersten, nach erneutem Würfeln den Wert des zweiten Würfels
     Private WürfelZweiter As Integer = 0 'Speichert den Wert des ersten Würfels zwischen, währen der zweite Gewürfelt wird
     Private WürfelTimer As Double 'Implementiert einen Cooldown für die Würfelanimation
-    Private WürfelIgnorieren As Boolean 'Deaktiviert den Würfel
+    Private StopUpdating As Boolean 'Deaktiviert die Spielelogik
 
     'Assets
     Private WürfelAugen As Texture2D
@@ -37,6 +37,7 @@ Public Class GameRoom
     Private WithEvents HUDChat As Controls.TextscrollBox
     Private WithEvents HUDChatBtn As Controls.Button
     Private WithEvents HUDInstructions As Controls.Label
+    Private InstructionFader As PropertyTransition
     Private ShowDice As Boolean = False
     Private HUDColor As Color
     Private Chat As List(Of (String, Color))
@@ -47,6 +48,7 @@ Public Class GameRoom
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
     Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Yellow}
+    Private SelectFader As Transition(Of Single)
 
     'Renderingtt
     Private rt As RenderTarget2D
@@ -76,12 +78,14 @@ Public Class GameRoom
         HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
         HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
-        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 970)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText")} : HUD.Controls.Add(HUDInstructions)
+        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 970)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
+        InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
         HUD.Init()
 
         'Lade Spielfeld
         Feld = New Rectangle(500, 50, 950, 950)
         Center = Feld.Center.ToVector2
+        SelectFader = New Transition(Of Single)(New TransitionTypes.TransitionType_EaseInEaseOut(400), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(SelectFader)
 
         'Bereite das Rendering vor
         rt = New RenderTarget2D(Dev, GameSize.X, GameSize.Y, False, SurfaceFormat.Color, DepthFormat.Depth24)
@@ -130,16 +134,17 @@ Public Class GameRoom
         'Zeichne Spielfiguren
         For j = 0 To 3
             Dim pl As Player = Spielers(j)
+            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex, SelectFader.Value, 1.0F)
             For k As Integer = 0 To 3
                 Dim chr As Integer = pl.Spielfiguren(k)
                 Select Case chr
                     Case -1 'Zeichne Figur in Homebase
                         DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(k), transmatrices(j)), playcolor(j))
-                    Case 40, 41, 42, 43 'Zeichne Figur in Homebase
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(j)), playcolor(j))
-                    Case Else
+                    Case 40, 41, 42, 43 'Zeichne Figur in Haus
+                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(j)), color)
+                    Case Else 'Zeichne Figur auf Feld
                         Dim matrx As Matrix = transmatrices((j + Math.Floor(chr / 10)) Mod 4)
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx), playcolor(j))
+                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx), color)
                 End Select
             Next
         Next
@@ -178,54 +183,57 @@ Public Class GameRoom
 
         HUDInstructions.Location = New Vector2(50, 1000)
 
-        Select Case Status
-            Case SpielStatus.Würfel
-                'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
-                Dim WürfelBtnGedrückt As Boolean = New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed
+        If Not StopUpdating Then
+            Select Case Status
+                Case SpielStatus.Würfel
+                    'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
+                    Dim WürfelBtnGedrückt As Boolean = New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed
 
-                'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
-                If WürfelBtnGedrückt And Not WürfelIgnorieren Then
-                    WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
+                    'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
+                    If WürfelBtnGedrückt Then
+                        WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
 
-                    If WürfelTimer > 50 Then
-                        WürfelTimer = 0
-                        WürfelWert = RNG.Next(1, 7)
+                        If WürfelTimer > 50 Then
+                            WürfelTimer = 0
+                            WürfelWert = RNG.Next(1, 7)
+                        End If
+                    ElseIf Not WürfelBtnGedrückt And WürfelWert > 0 Then
+                        'Gebe Würfe-Ergebniss auf dem Bildschirm aus
+                        HUDInstructions.Text = "You got a " & WürfelWert.ToString & "!"
+                        StopUpdating = True
+
+                        If WürfelZweiter = 0 Then 'Soeben gewürfelter Wurf ist der Erste
+                            'Speicher ersten Würfelwert zwischen und nach kurzer Pause, erwarte zweiten Würfel-Wurf
+                            WürfelZweiter = WürfelWert
+                            Automator.Add(New TimerTransition(1000, Sub()
+                                                                        StopUpdating = False
+                                                                        WürfelWert = 0
+                                                                    End Sub))
+                        Else 'Soeben gewürfelter Wurf ist der Zweite
+                            'Wenn Knopf losgelassen wurde, fahre fort mit der Figurwahl(nach kurzem delay)
+                            Automator.Add(New TimerTransition(1000, Sub()
+                                                                        Status = SpielStatus.WähleFigur
+                                                                        ShowDice = False
+                                                                        HUDInstructions.Text = "Select the piece you want to move!"
+                                                                    End Sub))
+                        End If
+
                     End If
-                ElseIf Not WürfelBtnGedrückt And WürfelWert > 0 And Not WürfelIgnorieren Then
-                    'Gebe Würfe-Ergebniss auf dem Bildschirm aus
-                    HUDInstructions.Text = "You got a " & WürfelWert.ToString & "!"
-                    WürfelIgnorieren = True
+                Case SpielStatus.WähleFigur
 
-                    If WürfelZweiter = 0 Then 'Soeben gewürfelter Wurf ist der Erste
-                        'Speicher ersten Würfelwert zwischen und nach kurzer Pause, erwarte zweiten Würfel-Wurf
-                        WürfelZweiter = WürfelWert
-                        Automator.Add(New TimerTransition(1000, Sub()
-                                                                    WürfelIgnorieren = False
-                                                                    WürfelWert = 0
-                                                                End Sub))
-                    Else 'Soeben gewürfelter Wurf ist der Zweite
-                        'Wenn Knopf losgelassen wurde, fahre fort mit der Figurwahl(nach kurzem delay)
-                        Automator.Add(New TimerTransition(1000, Sub()
-                                                                    Status = SpielStatus.WähleFigur
-                                                                    ShowDice = False
-                                                                    HUDInstructions.Text = "Select your piece that you want to move!"
-                                                                End Sub))
-                    End If
+                Case SpielStatus.FahreFelder
 
-                End If
-            Case SpielStatus.WähleFigur
+                Case SpielStatus.WarteAufOnlineSpieler
+                    'Prüfe einer die vier Spieler nicht anwesend sind, kehre zurück
+                    For Each sp In Spielers
+                        If sp Is Nothing Then Return
+                    Next
 
-            Case SpielStatus.FahreFelder
+                    'Falls vollzählig, starte Spiel
+                    SwitchPlayer(0)
+            End Select
+        End If
 
-            Case SpielStatus.WarteAufOnlineSpieler
-                'Prüfe einer die vier Spieler nicht anwesend sind, kehre zurück
-                For Each sp In Spielers
-                    If sp Is Nothing Then Return
-                Next
-
-                'Falls vollzählig, starte Spiel
-                SwitchPlayer(0)
-        End Select
         'Set HUD color
         HUDColor = playcolor(UserIndex)
         HUDBtnA.Color = HUDColor : HUDBtnA.Border = New ControlBorder(HUDColor, HUDBtnA.Border.Width)
@@ -333,7 +341,7 @@ Public Class GameRoom
         SpielerIndex = indx
         WürfelWert = 0
         ShowDice = True
-        WürfelIgnorieren = False
+        StopUpdating = False
         PostChat("It's Player " & indx.ToString & "'s Turn!", Color.White)
         HUDInstructions.Text = "Roll the Dice twice!"
     End Sub

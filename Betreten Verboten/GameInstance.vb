@@ -19,22 +19,26 @@ Public Class GameInstance
     End Sub
 
     Protected Overrides Sub Initialize()
-        Graphics.GraphicsProfile = GraphicsProfile.HiDef
-        Graphics.PreferredDepthStencilFormat = DepthFormat.Depth24
-        Graphics.PreferredBackBufferWidth = 1280
-        Graphics.PreferredBackBufferHeight = 720
-        Graphics.ApplyChanges()
-
         Me.Content.RootDirectory = "Content"
         Me.IsMouseVisible = True
-        Me.Window.AllowUserResizing = True
+        Me.Window.AllowUserResizing = False
         Me.Window.Title = "Betreten Verboten"
         Program.Content = Me.Content
+
+        Graphics.GraphicsProfile = GraphicsProfile.HiDef
+        Graphics.PreferredDepthStencilFormat = DepthFormat.Depth24
+        Graphics.ApplyChanges()
+
+        Graphics.PreferredBackBufferWidth = GraphicsDevice.DisplayMode.Width
+        Graphics.PreferredBackBufferHeight = GraphicsDevice.DisplayMode.Height
+        Graphics.SynchronizeWithVerticalRetrace = True
+        Graphics.ApplyChanges()
 
         MyBase.Initialize()
     End Sub
 
     Protected Overrides Sub LoadContent()
+
         'Erstelle SpriteBatchch
         SpriteBatch = New SpriteBatch(GraphicsDevice)
         DefaultFont = Content.Load(Of SpriteFont)("font\fnt_HKG_17_M")
