@@ -6,7 +6,7 @@ Namespace Framework.UI.Controls
         Inherits GuiControl
 
         Public Property Text As String
-        Public OutputFormat As Func(Of String()) = Function() {Text}
+        Public OutputFormat As Func(Of (String, Color)()) = Function() {(Text, Color.White)}
         Public Overrides ReadOnly Property InnerBounds As Rectangle
             Get
                 Return rect
@@ -19,10 +19,10 @@ Namespace Framework.UI.Controls
 
         Dim scrolloffset As Integer = 0
         Dim maxlines As Integer = 0
-        Dim workingtext As String()
+        Dim workingtext As (String, Color)()
         Dim rect As Rectangle
         Dim par As IParent
-        Sub New(output As Func(Of String()), location As Vector2, size As Vector2)
+        Sub New(output As Func(Of (String, Color)()), location As Vector2, size As Vector2)
             Me.OutputFormat = output
             Me.Location = location
             Me.Color = Color.White
@@ -40,19 +40,19 @@ Namespace Framework.UI.Controls
             Graphics.DrawRectangle(rect, Border.Color, Border.Width)
 
             For i As Integer = scrolloffset To Math.Min(scrolloffset + maxlines, workingtext.Length - 1)
-                SpriteBatch.DrawString(Font, workingtext(i), rect.Location.ToVector2 + New Vector2(10, Font.LineSpacing * (i - scrolloffset) + 5), Color)
+                SpriteBatch.DrawString(Font, workingtext(i).Item1, rect.Location.ToVector2 + New Vector2(10, Font.LineSpacing * (i - scrolloffset) + 5), workingtext(i).Item2)
             Next
         End Sub
 
-        Dim tmplist As New List(Of String)
+        Dim tmplist As New List(Of (String, Color))
         Public Overrides Sub Update(gameTime As GameTime, mstate As GuiInput, offset As Vector2)
 
             'Prepare text
-            Dim ln As String() = OutputFormat()
+            Dim ln As (String, Color)() = OutputFormat()
             tmplist.Clear()
             For i As Integer = 0 To ln.Length - 1
-                For Each element In WrapTextDifferently(ln(i), LenLimit, False).Split(Environment.NewLine)
-                    tmplist.Add(element.Replace(Microsoft.VisualBasic.vbLf, ""))
+                For Each element In WrapTextDifferently(ln(i).Item1, LenLimit, False).Split(Environment.NewLine)
+                    tmplist.Add((element.Replace(Microsoft.VisualBasic.vbLf, ""), ln(i).Item2))
                 Next
             Next
             workingtext = tmplist.ToArray

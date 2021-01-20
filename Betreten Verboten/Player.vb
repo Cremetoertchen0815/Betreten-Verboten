@@ -14,12 +14,6 @@ Public Class Player
     ''' </summary>
     Public Property Typ As SpielerTyp
 
-    ''' <summary>
-    ''' Die Farbe des ausgewählten Spielers
-    ''' </summary>
-    ''' <returns></returns>
-    Public Property Farbe As Color
-
     '
     ''' <summary>
     ''' Positionen der vier Spielfiguren.<br></br>

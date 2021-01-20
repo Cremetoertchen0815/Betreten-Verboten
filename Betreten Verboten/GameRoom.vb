@@ -13,6 +13,7 @@ Public Class GameRoom
     'Spiele-Flags und Variables
     Private Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
     Private SpielerIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
+    Private UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
     Private Status As SpielStatus
     Private WürfelWert As Integer
     Private WürfelTimer As Double
@@ -31,14 +32,14 @@ Public Class GameRoom
     Private WithEvents HUDBtnC As Controls.Button
     Private WithEvents HUDChat As Controls.TextscrollBox
     Private WithEvents HUDChatBtn As Controls.Button
-    Private Chat As List(Of String)
+    Private Chat As List(Of (String, Color))
 
     'Spielfeld
     Private Const FDist As Integer = 85
     Private Feld As Rectangle
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
-    Private playcolor As Color() = {Color.Blue, Color.Lime, Color.Cyan, Color.Yellow}
+    Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Yellow}
 
     'Renderingtt
     Private rt As RenderTarget2D
@@ -49,7 +50,7 @@ Public Class GameRoom
         WürfelTimer = 0
         'DEBUG: Setze sinnvolle Werte in Variablen ein, da das Menu noch nicht funktioniert.
         Spielers = {New Player, New Player, New Player, New Player}
-        Chat = New List(Of String)
+        Chat = New List(Of (String, Color))
     End Sub
 
     Friend Sub LoadContent()
@@ -191,7 +192,7 @@ Public Class GameRoom
             chatbtnpressed = True
             Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
             If txt <> "" Then
-                Chat.Add("[User]: " & txt)
+                PostChat("[User]: " & txt, Color.Yellow)
             End If
             chatbtnpressed = False
         End If
@@ -266,6 +267,10 @@ Public Class GameRoom
                 Return Vector2.Zero
         End Select
     End Function
+
+    Private Sub PostChat(txt As String, color As Color)
+        Chat.Add((txt, color))
+    End Sub
 #End Region
 
 End Class
