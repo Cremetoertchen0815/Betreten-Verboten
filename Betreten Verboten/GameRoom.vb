@@ -60,7 +60,7 @@ Public Class GameRoom
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 500
     Private Const WürfelAnimationCooldown As Integer = 62
-    Private Const FigurSpeed As Integer = 300
+    Private Const FigurSpeed As Integer = 200
     Private Const ErrorCooldown As Integer = 1700
     Private Const RollDiceCooldown As Integer = 800
 
@@ -92,7 +92,7 @@ Public Class GameRoom
         HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
         HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
-        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 985)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
+        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 1005)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
         InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
         HUDNameBtn = New Controls.Button("", New Vector2(500, 20), New Vector2(950, 30)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Black, 0), .Color = Color.Yellow} : HUD.Controls.Add(HUDNameBtn)
         HUD.Init()
@@ -191,7 +191,7 @@ Public Class GameRoom
         Dev.SetRenderTarget(Nothing) 'Setze des Render-Ziel auf den Backbuffer, aka den "Bildschirm"
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, SamplerState.AnisotropicClamp)
         SpriteBatch.Draw(rt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
-        'SpriteBatch.Draw(bltxt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
+        SpriteBatch.Draw(bltxt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
         SpriteBatch.End()
     End Sub
 
@@ -208,14 +208,14 @@ Public Class GameRoom
         Dim kstate As KeyboardState = Keyboard.GetState()
         Dim mpos As Point = Vector2.Transform(mstate.Position.ToVector2, Matrix.Invert(ScaleMatrix)).ToPoint
 
-        HUDInstructions.Location = New Vector2(50, 1000)
-
         If Not StopUpdating Then
             Dim win As Integer = CheckWin()
             If win > -1 Then
                 StopUpdating = True
+                ShowDice = False
                 HUDInstructions.Text = "Game over!"
                 PostChat(Spielers(win).Name & " won!", Color.White)
+                Status = SpielStatus.SpielZuEnde
             End If
 
             Select Case Status
@@ -232,7 +232,7 @@ Public Class GameRoom
 
                         WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                         'Implementiere einen Cooldown für die Würfelanimation
-                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 40 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                         If WürfelTimer > WürfelDauer Then
                             WürfelTimer = 0
@@ -302,6 +302,8 @@ Public Class GameRoom
 
                     'Falls vollzählig, starte Spiel
                     SwitchPlayer()
+                Case SpielStatus.SpielZuEnde
+
             End Select
         End If
 
@@ -390,7 +392,7 @@ Public Class GameRoom
             Dim pl As Player = Spielers(i)
             Dim check As Boolean = True
             For j As Integer = 0 To 3
-                If pl.Spielfiguren(j) <= 40 Then check = False
+                If pl.Spielfiguren(j) < 40 Then check = False
             Next
             If check Then Return i
         Next
