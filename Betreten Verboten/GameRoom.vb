@@ -89,7 +89,7 @@ Public Class GameRoom
         HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
         HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
-        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 970)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
+        HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 975)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
         InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
         HUDNameBtn = New Controls.Button("", New Vector2(500, 20), New Vector2(950, 30)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Black, 0), .Color = Color.Yellow} : HUD.Controls.Add(HUDNameBtn)
         HUD.Init()
@@ -195,7 +195,7 @@ Public Class GameRoom
     End Sub
 
     Private Function GetChrRect(vc As Vector2) As Rectangle
-        Return New Rectangle(vc.X - 10, vc.Y - 10, 20, 20)
+        Return New Rectangle(vc.X - 15, vc.Y - 15, 30, 30)
     End Function
 
     Friend Sub Update(ByVal gameTime As GameTime)
@@ -206,6 +206,13 @@ Public Class GameRoom
         HUDInstructions.Location = New Vector2(50, 1000)
 
         If Not StopUpdating Then
+            Dim win As Integer = CheckWin()
+            If win > -1 Then
+                StopUpdating = True
+                HUDInstructions.Text = "Game over!"
+                PostChat(Spielers(win).Name & " won!", Color.White)
+            End If
+
             Select Case Status
                 Case SpielStatus.Würfel
                     'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
@@ -220,7 +227,7 @@ Public Class GameRoom
 
                         WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                         'Implementiere einen Cooldown für die Würfelanimation
-                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 4 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                         If WürfelTimer > WürfelDauer Then
                             WürfelTimer = 0
@@ -262,14 +269,18 @@ Public Class GameRoom
                                 matrx = transmatrices((SpielerIndex + Math.Floor(chr / 10)) Mod 4)
                         End Select
 
-                        If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed Then
+                        If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
                             Dim defaultmov As Integer = Spielers(SpielerIndex).Spielfiguren(k)
-                            Status = SpielStatus.FahreFelder
-                            'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                            FigurFaderZiel = (SpielerIndex, k)
-                            FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * 500), defaultmov, defaultmov + Fahrzahl, AddressOf CheckKick)
-                            Automator.Add(FigurFader)
-                            StopUpdating = False
+                            If defaultmov + Fahrzahl > 43 Or IsFieldByIndexCoveredByOwnFigure(SpielerIndex, k) Then
+                                HUDInstructions.Text = "Incorrect move!"
+                            Else
+                                Status = SpielStatus.FahreFelder
+                                FigurFaderZiel = (SpielerIndex, k)
+                                'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
+                                FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * 500), defaultmov, defaultmov + Fahrzahl, AddressOf CheckKick)
+                                Automator.Add(FigurFader)
+                                StopUpdating = False
+                            End If
                             Exit For
                         End If
                     Next
@@ -305,23 +316,27 @@ Public Class GameRoom
 
 #Region "Hilfsfunktionen"
     Private Sub CalcMoves()
-        Dim homebase As Integer = GetHomebaseIndex(SpielerIndex)
-        Dim startfd As Boolean = GetCoveredStartfield(SpielerIndex)
-        Dim tmpd As Integer
+        Dim homebase As Integer = GetHomebaseIndex(SpielerIndex) 'Eine Spielfigur-ID, die sich in der Homebase befindet(-1, falls Homebase leer ist)
+        Dim startfd As Boolean = IsFieldCoveredByOwnFigure(SpielerIndex, 0) 'Ob das Start-Feld blockiert ist
         ShowDice = False
 
-
-        If Is6InDiceList(tmpd) And homebase > -1 Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
-            'Hole Figur aus Homebase und fahre "Fahrzahl" Felder nach vorne
+        If Is6InDiceList() And homebase > -1 And Not startfd Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
+            'Bereite das Homebase-verlassen vor
             Fahrzahl = GetSecondDiceAfterSix(SpielerIndex)
             Status = SpielStatus.FahreFelder
             HUDInstructions.Text = "Move Character out of your homebase and move him " & Fahrzahl & " spaces!"
+            'Hole Figur aus Homebase und prüfe ob Spieler gekickt wird
+            Spielers(SpielerIndex).Spielfiguren(homebase) = 0
+            CheckKick()
             'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
             FigurFaderZiel = (SpielerIndex, homebase)
             FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * 500), -1, Fahrzahl, AddressOf CheckKick)
             Automator.Add(FigurFader)
             StopUpdating = False
-        ElseIf homebase = 0 And Not Is6InDiceList(tmpd) Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde, ist kein Zug möglich und der nächste Spieler ist an der Reihe
+        ElseIf Is6InDiceList() And homebase > -1 And startfd Then
+
+        ElseIf (homebase = 0 And Not Is6InDiceList()) Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde, oder die Homebase blockiert ist, ist kein Zug möglich und der nächste Spieler ist an der Reihe
+            HUDInstructions.Text = "Start field blocked!"
             SwitchPlayer()
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
             'TODO: Add code for handling normal dice rolls and movement, as well as kicking
@@ -354,6 +369,32 @@ Public Class GameRoom
         Next
     End Sub
 
+    Private Function CheckWin() As Integer
+        For i As Integer = 0 To 3
+            Dim pl As Player = Spielers(i)
+            Dim check As Boolean = True
+            For j As Integer = 0 To 3
+                If pl.Spielfiguren(j) <= 40 Then check = False
+            Next
+            If check Then Return i
+        Next
+        Return -1
+    End Function
+
+    Private Function IsFieldCoveredByOwnFigure(player As Integer, field As Integer) As Boolean
+        For i As Integer = 0 To 3
+            If Spielers(player).Spielfiguren(i) = field Then Return True
+        Next
+        Return False
+    End Function
+
+    Private Function IsFieldByIndexCoveredByOwnFigure(player As Integer, fieldindx As Integer) As Boolean
+        For i As Integer = 0 To 3
+            If Spielers(player).Spielfiguren(i) = Spielers(player).Spielfiguren(fieldindx) And i <> fieldindx Then Return True
+        Next
+        Return False
+    End Function
+
     'Gibt den Index ein Spielfigur zurück, die sich noch in der Homebase befindet. Falls keine Figur mehr in der Homebase, gibt die Fnkt. -1 zurück.
     Private Function GetHomebaseIndex(player As Integer) As Integer
         For i As Integer = 0 To 3
@@ -362,18 +403,9 @@ Public Class GameRoom
         Return -1
     End Function
 
-    Private Function GetCoveredStartfield(player As Integer) As Boolean
-        Dim fa As Integer = PlayerFieldToGlobalField(0, player)
-        For i As Integer = player To player + 3
-            Dim fb As Integer = PlayerFieldToGlobalField(0, i Mod 4)
-            If fa = fb Then Return True
-        Next
-        Return False
-    End Function
-
-    Private Function Is6InDiceList(ByRef index As Integer) As Boolean
+    Private Function Is6InDiceList() As Boolean
         For i As Integer = 0 To WürfelWerte.Length - 1
-            If WürfelWerte(i) = 6 Then index = i : Return True
+            If WürfelWerte(i) = 6 Then Return True
         Next
         Return False
     End Function
