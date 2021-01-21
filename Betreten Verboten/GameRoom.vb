@@ -42,6 +42,7 @@ Public Class GameRoom
     Private WithEvents HUDChat As Controls.TextscrollBox
     Private WithEvents HUDChatBtn As Controls.Button
     Private WithEvents HUDInstructions As Controls.Label
+    Private WithEvents HUDNameBtn As Controls.Button
     Private InstructionFader As PropertyTransition
     Private ShowDice As Boolean = False
     Private HUDColor As Color
@@ -90,10 +91,11 @@ Public Class GameRoom
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
         HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 970)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
         InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
+        HUDNameBtn = New Controls.Button("", New Vector2(500, 20), New Vector2(950, 30)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Black, 0), .Color = Color.Yellow} : HUD.Controls.Add(HUDNameBtn)
         HUD.Init()
 
         'Lade Spielfeld
-        Feld = New Rectangle(500, 50, 950, 950)
+        Feld = New Rectangle(500, 80, 950, 950)
         Center = Feld.Center.ToVector2
         SelectFader = New Transition(Of Single)(New TransitionTypes.TransitionType_EaseInEaseOut(400), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(SelectFader)
 
@@ -218,7 +220,7 @@ Public Class GameRoom
 
                         WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                         'Implementiere einen Cooldown für die Würfelanimation
-                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 4 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                         If WürfelTimer > WürfelDauer Then
                             WürfelTimer = 0
@@ -294,6 +296,8 @@ Public Class GameRoom
         HUDBtnC.Color = HUDColor : HUDBtnC.Border = New ControlBorder(HUDColor, HUDBtnC.Border.Width)
         HUDChat.Color = HUDColor : HUDChat.Border = New ControlBorder(HUDColor, HUDChat.Border.Width)
         HUDChatBtn.Color = HUDColor : HUDChatBtn.Border = New ControlBorder(HUDColor, HUDChatBtn.Border.Width)
+        HUDNameBtn.Text = Spielers(SpielerIndex).Name
+        HUDNameBtn.Color = playcolor(SpielerIndex)
 
         HUD.Update(gameTime, mstate, Matrix.Identity)
         lastmstate = mstate
@@ -328,7 +332,26 @@ Public Class GameRoom
     End Sub
 
     Private Sub CheckKick()
-
+        'Berechne globale Spielfeldposition der rauswerfenden Figur
+        Dim playerA As Integer = FigurFaderZiel.Item1
+        Dim fieldA As Integer = Spielers(playerA).Spielfiguren(FigurFaderZiel.Item2)
+        Dim fa As Integer = PlayerFieldToGlobalField(fieldA, playerA)
+        'Loope durch andere Spieler
+        For i As Integer = playerA + 1 To playerA + 3
+            'Loope durch alle Spielfiguren eines jeden Spielers
+            For j As Integer = 0 To 3
+                'Berechne globale Spielfeldposition der rauszuwerfenden Spielfigur
+                Dim playerB As Integer = i Mod 4
+                Dim fieldB As Integer = Spielers(playerB).Spielfiguren(j)
+                Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
+                'Falls globale Spielfeldposition identisch und 
+                If fieldB > 0 And fieldB <= 40 And fb = fa Then
+                    Spielers(playerB).Spielfiguren(j) = -1 'Kicke Spielfigur
+                    PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)
+                    Exit Sub
+                End If
+            Next
+        Next
     End Sub
 
     'Gibt den Index ein Spielfigur zurück, die sich noch in der Homebase befindet. Falls keine Figur mehr in der Homebase, gibt die Fnkt. -1 zurück.
@@ -449,7 +472,6 @@ Public Class GameRoom
 
         ShowDice = True
         StopUpdating = False
-        PostChat("It's Player " & (SpielerIndex + 1).ToString & "'s Turn!", Color.White)
         HUDInstructions.Text = "Roll the Dice twice!"
     End Sub
 #End Region
