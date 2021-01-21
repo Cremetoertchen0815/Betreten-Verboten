@@ -20,7 +20,7 @@ Public Class GameInstance
 
     Protected Overrides Sub Initialize()
         Me.Content.RootDirectory = "Content"
-        Me.IsMouseVisible = True
+        Me.IsMouseVisible = False
         Me.Window.AllowUserResizing = False
         Me.Window.Title = "Betreten Verboten"
         Program.Content = Me.Content
@@ -80,6 +80,17 @@ Public Class GameInstance
         If InGame Then
             AktuellesSpiel.Draw(gameTime)
         End If
+
+        SpriteBatch.Begin()
+
+        'Draw Cursor
+        Dim MousePos As Vector2 = Vector2.Transform(Mouse.GetState.Position.ToVector2, Matrix.Invert(ScaleMatrix))
+        Primitives2D.DrawLine(New Vector2(MousePos.X + 15, MousePos.Y + 2), New Vector2(MousePos.X - 15, MousePos.Y + 2), Color.Black, 6)
+        Primitives2D.DrawLine(New Vector2(MousePos.X - 2, MousePos.Y + 15), New Vector2(MousePos.X - 2, MousePos.Y - 15), Color.Black, 6)
+        Primitives2D.DrawLine(New Vector2(MousePos.X + 15, MousePos.Y), New Vector2(MousePos.X - 15, MousePos.Y), Color.Wheat, 2)
+        Primitives2D.DrawLine(New Vector2(MousePos.X, MousePos.Y + 15), New Vector2(MousePos.X, MousePos.Y - 15), Color.Wheat, 2)
+
+        SpriteBatch.End()
 
         MyBase.Draw(gameTime)
     End Sub

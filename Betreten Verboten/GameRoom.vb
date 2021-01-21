@@ -123,6 +123,8 @@ Public Class GameRoom
         Bloom.BloomThreshold = 0
         Bloom.BloomUseLuminance = True
 
+
+
         'Draw fields
         Dim fields As New List(Of Vector2)
         For j = 0 To 3
@@ -186,7 +188,7 @@ Public Class GameRoom
         Dev.SetRenderTarget(Nothing) 'Setze des Render-Ziel auf den Backbuffer, aka den "Bildschirm"
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, SamplerState.AnisotropicClamp)
         SpriteBatch.Draw(rt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
-        SpriteBatch.Draw(bltxt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
+        'SpriteBatch.Draw(bltxt, New Rectangle(0, 0, GameSize.X, GameSize.Y), Color.White)
         SpriteBatch.End()
     End Sub
 
@@ -227,7 +229,7 @@ Public Class GameRoom
 
                         WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                         'Implementiere einen Cooldown für die Würfelanimation
-                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                         If WürfelTimer > WürfelDauer Then
                             WürfelTimer = 0
@@ -329,12 +331,20 @@ Public Class GameRoom
             Spielers(SpielerIndex).Spielfiguren(homebase) = 0
             CheckKick()
             'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-            FigurFaderZiel = (SpielerIndex, homebase)
-            FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * 500), -1, Fahrzahl, AddressOf CheckKick)
-            Automator.Add(FigurFader)
-            StopUpdating = False
+            If Not IsFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl) Then
+                FigurFaderZiel = (SpielerIndex, homebase)
+                FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * 500), -1, Fahrzahl, AddressOf CheckKick)
+                Automator.Add(FigurFader)
+            Else
+                StopUpdating = True
+                HUDInstructions.Text = "Field already covered! Piece is being placed at field 1!"
+                Automator.Add(New TimerTransition(1400, Sub()
+                                                            StopUpdating = False
+                                                        End Sub))
+            End If
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then
-
+            Console.WriteLine("")
+            StopUpdating = True
         ElseIf (homebase = 0 And Not Is6InDiceList()) Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde, oder die Homebase blockiert ist, ist kein Zug möglich und der nächste Spieler ist an der Reihe
             HUDInstructions.Text = "Start field blocked!"
             SwitchPlayer()
@@ -504,7 +514,7 @@ Public Class GameRoom
 
         ShowDice = True
         StopUpdating = False
-        HUDInstructions.Text = "Roll the Dice twice!"
+        HUDInstructions.Text = "Roll the Dice!"
     End Sub
 #End Region
 
