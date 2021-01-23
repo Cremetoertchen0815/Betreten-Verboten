@@ -30,6 +30,8 @@ Public Class GameRoom
     'Assets
     Private WürfelAugen As Texture2D
     Private WürfelRahmen As Texture2D
+    Private SpielfeldVerbindungen As Texture2D
+    Private Pfeil As Texture2D
     Private ButtonFont As SpriteFont
     Private ChatFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
@@ -52,7 +54,7 @@ Public Class GameRoom
     Private Feld As Rectangle
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
-    Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Yellow}
+    Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange}
     Private SelectFader As Transition(Of Single) 'Fader, welcher die zur Auswahl stehenden Figuren blinken lässt
     Private FigurFader As Transition(Of Integer) 'Fader, welcher die Figuren über das Spielfeld bewegt
     Private FigurFaderZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
@@ -87,6 +89,8 @@ Public Class GameRoom
         'Lade Assets
         WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
+        SpielfeldVerbindungen = Content.Load(Of Texture2D)("playfield_connections")
+        Pfeil = Content.Load(Of Texture2D)("arrow_right")
         ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
         RNG = New Random()
@@ -126,12 +130,15 @@ Public Class GameRoom
                     Case PlayFieldPos.Feld1
                         DrawCircle(loc, 28, 30, playcolor(j), 3)
                         fields.Add(loc)
+                        DrawArrow(loc, playcolor(j), j)
                     Case Else
                         DrawCircle(loc, 28, 30, Color.White, 3)
                         fields.Add(loc)
                 End Select
             Next
         Next
+
+        SpriteBatch.Draw(SpielfeldVerbindungen, Feld, Color.White)
 
         'Zeichne Spielfiguren
         For j = 0 To 3
@@ -175,6 +182,10 @@ Public Class GameRoom
 
     Private Sub DrawChr(vc As Vector2, color As Color)
         FillRectangle(New Rectangle(vc.X - 10, vc.Y - 10, 20, 20), color)
+    End Sub
+
+    Private Sub DrawArrow(vc As Vector2, color As Color, iteration As Integer)
+        SpriteBatch.Draw(Pfeil, New Rectangle(vc.X, vc.Y, 35, 35), Nothing, color, MathHelper.PiOver2 * (iteration + 3), New Vector2(35, 35) / 2, SpriteEffects.None, 0)
     End Sub
 
     Private Function GetChrRect(vc As Vector2) As Rectangle

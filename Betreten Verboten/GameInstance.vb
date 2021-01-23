@@ -16,7 +16,7 @@ Public Class GameInstance
     Friend InGame As Boolean = False 'Gibt an, ob das Menü geupdatet werden soll, oder der GameRoom
     Private AktuellesSpiel As GameRoom
     Private Timer As Integer = 0 'Fungiert nicht nur als Zeit-Puffer für den Start-Text, sondern auch als Flag für die Menü-Überblendung
-    Private MenuAktiviert As Boolean = True
+    Private MenuAktiviert As Boolean = False
     Private SingleGameFrame As Boolean = False 'Helper-Flag für den ersten Frame des Spiels
     Private Submenu As Integer = 0 'Gibt an in welchem Untermenü sich der User befindet
     Private lastmstate As MouseState
@@ -47,7 +47,7 @@ Public Class GameInstance
     Protected Overrides Sub Initialize()
         Me.Content.RootDirectory = "Content"
         Me.IsMouseVisible = False
-        Me.Window.AllowUserResizing = False
+        Me.Window.AllowUserResizing = True
         Me.Window.Title = "Betreten Verboten"
         Program.Content = Me.Content
 
@@ -304,7 +304,7 @@ Public Class GameInstance
         SpriteBatch.End()
 
         'Zeichne Cursor
-        SpriteBatch.Begin()
+        SpriteBatch.Begin(SpriteSortMode.Deferred, Nothing, SamplerState.AnisotropicClamp, Nothing, Nothing, Nothing, ScaleMatrix)
         Dim MousePos As Vector2 = Vector2.Transform(Mouse.GetState.Position.ToVector2, Matrix.Invert(ScaleMatrix))
         Primitives2D.DrawLine(New Vector2(MousePos.X + 15, MousePos.Y + 2), New Vector2(MousePos.X - 15, MousePos.Y + 2), Color.Black, 6)
         Primitives2D.DrawLine(New Vector2(MousePos.X - 2, MousePos.Y + 15), New Vector2(MousePos.X - 2, MousePos.Y - 15), Color.Black, 6)
