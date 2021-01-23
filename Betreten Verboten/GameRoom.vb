@@ -422,7 +422,8 @@ Public Class GameRoom
             Status = SpielStatus.WähleFigur
             StopUpdating = True
             Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
-        ElseIf homebase = 0 And Not Is6InDiceList() Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde, ist kein Zug möglich und der nächste Spieler ist an der Reihe
+        ElseIf (GetHomebaseCount(SpielerIndex) = 4 And Not Is6InDiceList()) OrElse CanDoAMove() Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde(oder generell kein Zug mehr möglich ist), ist kein Zug möglich und der nächste Spieler ist an der Reihe
+            StopUpdating = True
             SwitchPlayer()
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
             'TODO: Add code for handling normal dice rolls and movement, as well as kicking
@@ -465,6 +466,22 @@ Public Class GameRoom
             If check Then Return i
         Next
         Return -1
+    End Function
+
+    Private Function CanDoAMove() As Boolean
+        Dim pl As Player = Spielers(SpielerIndex)
+
+        'Wähle alle möglichen Zügen aus
+        Dim ichmagzüge As New List(Of Integer)
+        Dim defaultmov As Integer
+        For i As Integer = 0 To 3
+            defaultmov = pl.Spielfiguren(i)
+            'Prüfe ob Zug mit dieser Figur möglich ist(Nicht in homebase, nicht über Ziel hinaus und Zielfeld nicht mit eigener Figur belegt
+            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+        Next
+
+        'Prüfe ob Zug möglich
+        Return ichmagzüge.Count > 0
     End Function
 
     Private Function IsFieldCoveredByOwnFigure(player As Integer, field As Integer) As Boolean
