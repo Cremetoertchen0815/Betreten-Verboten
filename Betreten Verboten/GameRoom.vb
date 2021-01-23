@@ -231,7 +231,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 3 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -276,7 +276,6 @@ Public Class GameRoom
                     Select Case pl.Typ
                         Case SpielerTyp.Local
                             'Manuelle Auswahl für lokale Spieler
-                            Dim stuckcheck As Boolean = True 'Is false, wenn kein Zug möglich und das Spiel softlockt
                             For k As Integer = 0 To 3
                                 Dim chr As Integer = pl.Spielfiguren(k)
                                 Dim vec As Vector2 = Vector2.Zero
@@ -292,7 +291,6 @@ Public Class GameRoom
 
                                 'Anti-Stuck-Fuck
                                 Dim defaultmov As Integer = Spielers(SpielerIndex).Spielfiguren(k)
-                                If Not (defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k)) Then stuckcheck = False
 
                                 'Prüfe Figur nach Mouse-Klick
                                 If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
@@ -310,9 +308,6 @@ Public Class GameRoom
                                     Exit For
                                 End If
                             Next
-
-                            'Anti-Stuck-Fuck
-                            If stuckcheck Then SwitchPlayer()
 
                         Case SpielerTyp.CPU
                             'TODO: FÜge CPU-Code ein(Auswahl, welcher Zug optimal ist)
@@ -424,7 +419,11 @@ Public Class GameRoom
             Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
         ElseIf (GetHomebaseCount(SpielerIndex) = 4 And Not Is6InDiceList()) OrElse Not CanDoAMove() Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde(oder generell kein Zug mehr möglich ist), ist kein Zug möglich und der nächste Spieler ist an der Reihe
             StopUpdating = True
-            SwitchPlayer()
+            HUDInstructions.Text = "No move possible!"
+            Automator.Add(New TimerTransition(1000, Sub()
+                                                        SwitchPlayer()
+                                                        StopUpdating = False
+                                                    End Sub))
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
             'TODO: Add code for handling normal dice rolls and movement, as well as kicking
             Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
