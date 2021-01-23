@@ -231,7 +231,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -410,10 +410,10 @@ Public Class GameRoom
                 Automator.Add(FigurFader)
             Else
                 StopUpdating = True
-                HUDInstructions.Text = "Field already covered! Piece is being placed at field 1!"
+                HUDInstructions.Text = "Field already covered! Move with the other piece!"
                 Automator.Add(New TimerTransition(ErrorCooldown, Sub()
+                                                                     Status = SpielStatus.WähleFigur
                                                                      StopUpdating = False
-                                                                     SwitchPlayer()
                                                                  End Sub))
             End If
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then 'Gibt an, dass das Start-Feld von einer eigenen Figur belegt ist(welche nicht gekickt werden kann) und dass selbst beim Wurf einer 6 keine weitere Figur die Homebase verlassen kann
