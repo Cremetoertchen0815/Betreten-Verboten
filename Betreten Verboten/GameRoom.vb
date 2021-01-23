@@ -26,6 +26,7 @@ Public Class GameRoom
     Private Fahrzahl As Integer 'Anzahl der Felder die gefahren werden kann
     Private DreifachWürfeln As Boolean 'Gibt an(am Anfang des Spiels), dass ma drei Versuche hat um eine 6 zu bekommen
     Private lastmstate As MouseState
+    Private lastkstate As KeyboardState
 
     'Assets
     Private WürfelAugen As Texture2D
@@ -219,7 +220,7 @@ Public Class GameRoom
                         Case SpielerTyp.Local
                             'Manuelles Würfeln für lokalen Spieler
                             'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
-                            If New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
+                            If (New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released) Or (kstate.IsKeyDown(Keys.Space) And lastkstate.IsKeyUp(Keys.Space)) Then
                                 WürfelTriggered = True
                                 WürfelTimer = 0
                                 WürfelAnimationTimer = -1
@@ -381,8 +382,11 @@ Public Class GameRoom
             HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (Spielers(SpielerIndex).Typ = SpielerTyp.Local)
         End If
 
+        'Misc things
+        If kstate.IsKeyDown(Keys.Escape) And lastkstate.IsKeyUp(Keys.Escape) Then MenuButton()
         HUD.Update(gameTime, mstate, Matrix.Identity)
         lastmstate = mstate
+        lastkstate = kstate
     End Sub
 
 #Region "Hilfsfunktionen"
