@@ -231,7 +231,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -489,6 +489,14 @@ Public Class GameRoom
         Return -1
     End Function
 
+    Private Function GetHomebaseCount(player As Integer) As Integer
+        Dim count As Integer = 0
+        For i As Integer = 0 To 3
+            If Spielers(player).Spielfiguren(i) = -1 Then count += 1
+        Next
+        Return count
+    End Function
+
     Private Function Is6InDiceList() As Boolean
         For i As Integer = 0 To WürfelWerte.Length - 2
             If WürfelWerte(i) = 6 Then Return True
@@ -586,7 +594,7 @@ Public Class GameRoom
         ShowDice = True
         StopUpdating = False
         HUDInstructions.Text = "Roll the Dice!"
-        DreifachWürfeln = GetHomebaseIndex(SpielerIndex) = 0 'Falls noch alle Figuren un der Homebase sind
+        DreifachWürfeln = GetHomebaseCount(SpielerIndex) = 4 'Falls noch alle Figuren un der Homebase sind
         WürfelTimer = 0
         ReDim WürfelWerte(3)
         For i As Integer = 0 To WürfelWerte.Length - 1
