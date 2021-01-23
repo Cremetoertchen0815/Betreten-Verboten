@@ -1,5 +1,7 @@
-﻿-Implementiere Spiele-Mechaniken(bis 21.01.21)
--Implementiere CPU				(bis 23.01.21)
+﻿-Implementiere Spiele-Mechaniken(bis 21.01.21) Check!
+-Implementiere CPU				(bis 21.01.21) Halb-CHeck!
+-Implementiere Menu				(bis 23.01.21)
 -Implementiere Networking		(bis 25.01.21)
 -Implementiere 3D-Movement		(bis 28.01.21)
+-Implementiere SFX + BGM    	(bis 29.01.21)
 -Testen							(bis 29.01.21)

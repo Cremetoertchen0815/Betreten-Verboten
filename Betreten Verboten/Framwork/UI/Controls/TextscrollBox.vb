@@ -69,5 +69,9 @@ Namespace Framework.UI.Controls
             scrolloffset = Math.Max(scrolloffset, 0)
 
         End Sub
+
+        Friend Sub Scroll(index As Integer)
+            scrolloffset = Math.Max(0, index - maxlines)
+        End Sub
     End Class
 End Namespace

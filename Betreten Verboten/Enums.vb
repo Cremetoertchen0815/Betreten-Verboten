@@ -1,5 +1,5 @@
 ﻿Public Enum SpielerTyp
-    Lokal = 0
+    Local = 0
     CPU = 1
     Online = 2
 End Enum
@@ -9,7 +9,7 @@ Public Enum SpielStatus
     WähleFigur = 1
     FahreFelder = 2
     SpielZuEnde = 3
-    WarteAufOnlineSpieler = 3
+    WarteAufOnlineSpieler = 4
 End Enum
 
 Public Enum PlayFieldPos
@@ -31,4 +31,10 @@ Public Enum PlayFieldPos
     Haus2
     Haus3
     Haus4
+End Enum
+
+Public Enum Difficulty
+    Easy = 0
+    Medium = 1
+    Hard = 2
 End Enum

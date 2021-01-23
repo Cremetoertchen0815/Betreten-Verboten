@@ -12,7 +12,7 @@ Public Class Player
     ''' <summary>
     ''' Deklariert ob der Spieler lokal, durch eine KI, oder über eine Netzwerkverbindung gesteuert wird
     ''' </summary>
-    Public Property Typ As SpielerTyp
+    Public Property Typ As SpielerTyp = SpielerTyp.CPU
 
     '
     ''' <summary>
@@ -21,5 +21,18 @@ Public Class Player
     ''' </summary>
     ''' <returns></returns>
     Public Property Spielfiguren As Integer() = {-1, -1, -1, -1}
+
+    Public Property Schwierigkeit As Difficulty = Difficulty.Easy
+
+    Public Property Bereit As Boolean = True
+
+    Sub New(typ As SpielerTyp, Optional schwierigkeit As Difficulty = Difficulty.Easy)
+        Me.Typ = typ
+        Me.Schwierigkeit = schwierigkeit
+    End Sub
+
+    Sub New()
+
+    End Sub
 
 End Class
