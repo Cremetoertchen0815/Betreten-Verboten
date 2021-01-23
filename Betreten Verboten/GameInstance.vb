@@ -22,9 +22,10 @@ Public Class GameInstance
     Private lastmstate As MouseState
     Private NewGamePlayers As SpielerTyp() = {SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local}
     Private Schwierigkeitsgrad As Difficulty
+    Private ChangeNameButtonPressed As Boolean = False
 
     'Konstanten
-    Private Const FadeOverTime As Integer = 800
+    Friend Const FadeOverTime As Integer = 800
 
     'Assets & Faders
     Protected Schwarzblende As ShaderTransition
@@ -150,15 +151,24 @@ Public Class GameInstance
                 End If
             End If
 
-            If MenuAktiviert And Schwarzblende.State <> TransitionState.InProgress Then
+            If MenuAktiviert And Schwarzblende.State <> TransitionState.InProgress And Not ChangeNameButtonPressed Then
                 Select Case Submenu
                     Case 0
+                        'Wähle Menüpunkt
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(1)
                         If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(2)
                         If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(3)
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then
                             Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub() [Exit]())
                             Automator.Add(Schwarzblende)
+                        End If
+                        'Wechsel Benutzername
+                        If New Rectangle(New Point(20, 40), MediumFont.MeasureString("Username: " & My.Settings.Username).ToPoint).Contains(mpos) And OneshotPressed Then
+                            OpenInputbox("Enter the new username: ", "Change username", Sub(x)
+                                                                                            My.Settings.Username = x
+                                                                                            My.Settings.Save()
+                                                                                        End Sub, My.Settings.Username)
+
                         End If
                     Case 1
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
@@ -185,6 +195,17 @@ Public Class GameInstance
                                                                                                                                                         End Sub)
                             Automator.Add(Schwarzblende)
                         End If
+                    Case 2
+                        If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
+                        If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
+                    Case 3
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                 End Select
             End If
         End If
@@ -242,6 +263,20 @@ Public Class GameInstance
                         DrawLine(New Vector2(GameSize.X / 2, 900), New Vector2(GameSize.X / 2, 1000), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Back", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("Back").X / 2, 925), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("Start Round").X / 2, 925), FgColor)
+                    Case 2
+                        DrawLine(New Vector2(GameSize.X / 2, 200), New Vector2(GameSize.X / 2, 300), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "←", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("←").X / 2, 225), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "→", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("→").X / 2, 225), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "[No open rounds]", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("[No open rounds]").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
+                        SpriteBatch.DrawString(MediumFont, "Join Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Join Round").X / 2, 525), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
+                    Case 3
+                        Dim txtB As String = "No server connected."
+                        SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
+                        SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(IsConnectedToServer, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                 End Select
             Else
                 'Zeichne Startbildschirm
@@ -281,7 +316,7 @@ Public Class GameInstance
     End Sub
 
 
-    Private Sub SwitchToSubmenu(submenu As Integer)
+    Friend Sub SwitchToSubmenu(submenu As Integer, Optional InBetweenOperation As Action = Nothing)
         'Bereite Submenu vor
         Select Case submenu
             Case 1
@@ -290,11 +325,24 @@ Public Class GameInstance
 
         'Blende über
         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
+                                                                                                                                        If InBetweenOperation IsNot Nothing Then InBetweenOperation()
+                                                                                                                                        InGame = False
                                                                                                                                         Me.Submenu = submenu
                                                                                                                                         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(1000), 0F, 1.0F, BrightFX, "amount", Nothing)
                                                                                                                                         Automator.Add(Schwarzblende)
                                                                                                                                     End Sub)
         Automator.Add(Schwarzblende)
+    End Sub
+
+    Private Sub OpenInputbox(message As String, title As String, finalaction As Action(Of String), Optional defaultvalue As String = "")
+        If Not ChangeNameButtonPressed Then
+            ChangeNameButtonPressed = True
+            Dim txt As String = Microsoft.VisualBasic.InputBox(message, title, defaultvalue)
+            If txt <> "" Then
+                finalaction.Invoke(txt)
+            End If
+            ChangeNameButtonPressed = False
+        End If
     End Sub
 
     Private ReadOnly Property IsConnectedToServer() As Boolean
