@@ -301,7 +301,7 @@ Public Class GameInstance
 
                 'Zeichne Info
                 Dim txtA As String = "Username: " & My.Settings.Username
-                Dim txtB As String = If(IsConnectedToServer, "Connected to: " & Environment.NewLine & LocalClient.Hostname & Environment.NewLine & MenschenOnline & " human(s) online.", "No server connected.")
+                Dim txtB As String = If(IsConnectedToServer, "Connected to: " & Environment.NewLine & LocalClient.Hostname & Environment.NewLine & MenschenOnline & " human(s) online", "No server connected")
                 SpriteBatch.DrawString(MediumFont, txtA, New Vector2(20, 40), FgColor)
                 SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
             Else
