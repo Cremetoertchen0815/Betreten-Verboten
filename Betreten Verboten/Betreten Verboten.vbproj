@@ -110,8 +110,10 @@
     <Compile Include="Framwork\UI\IParent.vb" />
     <Compile Include="GameRoom.vb" />
     <Compile Include="GameInstance.vb" />
+    <Compile Include="Networking\Client.vb" />
     <Compile Include="Networking\Connection.vb" />
     <Compile Include="Networking\Game.vb" />
+    <Compile Include="Networking\OnlineGameInstance.vb" />
     <Compile Include="Networking\Server.vb" />
     <Compile Include="Player.vb" />
     <Compile Include="Program.vb" />
@@ -127,6 +129,7 @@
       <HintPath>$(MonoGameInstallDirectory)\MonoGame\v3.0\Assemblies\Windows\MonoGame.Framework.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>

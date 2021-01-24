@@ -62,12 +62,12 @@ Public Class GameRoom
     Private CPUTimer As Integer
 
     Private Const FDist As Integer = 85
-    Private Const WürfelDauer As Integer = 500
+    Private Const WürfelDauer As Integer = 400
     Private Const WürfelAnimationCooldown As Integer = 62
     Private Const FigurSpeed As Integer = 200
-    Private Const ErrorCooldown As Integer = 1700
+    Private Const ErrorCooldown As Integer = 1200
     Private Const RollDiceCooldown As Integer = 800
-    Private Const CPUThinkingTime As Integer = 2500
+    Private Const CPUThinkingTime As Integer = 1500
 
     'Private Const FDist As Integer = 85
     'Private Const WürfelDauer As Integer = 1
@@ -167,11 +167,12 @@ Public Class GameRoom
         End If
         'Zeichne Mini-Würfel
         If Status <> SpielStatus.WarteAufOnlineSpieler Then
-            For i As Integer = 0 To If(Spielers(SpielerIndex).Typ = SpielerTyp.CPU And Not DreifachWürfeln, 1, WürfelWerte.Length - 1)
+            For i As Integer = 0 To WürfelWerte.Length - 1 'If(Spielers(SpielerIndex).Typ = SpielerTyp.CPU And Not DreifachWürfeln, 1, WürfelWerte.Length - 1)
                 If SpielerIndex = UserIndex And WürfelWerte(i) > 0 Then
                     SpriteBatch.Draw(WürfelAugen, New Rectangle(1590 + i * 70, 600, 50, 50), GetWürfelSourceRectangle(WürfelWerte(i)), HUDColor)
                     SpriteBatch.Draw(WürfelRahmen, New Rectangle(1590 + i * 70, 600, 50, 50), Color.Lerp(HUDColor, Color.White, 0.4))
                 End If
+                If Spielers(SpielerIndex).Typ = SpielerTyp.CPU And Not DreifachWürfeln And WürfelWerte(i) <> 6 Then Exit For
             Next
         End If
         'DrawRectangle(Feld, Color.White)
@@ -389,6 +390,7 @@ Public Class GameRoom
         Dim homebase As Integer = GetHomebaseIndex(SpielerIndex) 'Eine Spielfigur-ID, die sich in der Homebase befindet(-1, falls Homebase leer ist)
         Dim startfd As Boolean = IsFieldCoveredByOwnFigure(SpielerIndex, 0) 'Ob das Start-Feld blockiert ist
         ShowDice = False
+        Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0)) 'Setzt die Anzahl der zu fahrenden Felder im voraus(kann im Fall einer vollen Homebase überschrieben werden)
 
         If Is6InDiceList() And homebase > -1 And Not startfd Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
             'Bereite das Homebase-verlassen vor

@@ -24,9 +24,13 @@ Public Class GameInstance
     Private NewGamePlayers As SpielerTyp() = {SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local}
     Private Schwierigkeitsgrad As Difficulty
     Private ChangeNameButtonPressed As Boolean = False
+    Private OnlineGameInstances As OnlineGameInstance()
+    Private ServerRefreshTimer As Integer = 0
+    Private MenschenOnline As Integer = 0
 
     'Konstanten
     Friend Const FadeOverTime As Integer = 800
+    Friend Const ServerAutoRefresh As Integer = 500
 
     'Assets & Faders
     Protected Schwarzblende As ShaderTransition
@@ -107,6 +111,7 @@ Public Class GameInstance
         BrightFX = Content.Load(Of Effect)("fx/fx_fadetocolor")
         BrightFX.Parameters("amount").SetValue(0.0F)
         If My.Settings.Username = "" Then My.Settings.Username = Environment.UserName : My.Settings.Save()
+        LocalClient = New Client
     End Sub
 
     Protected Overrides Sub UnloadContent()
@@ -157,7 +162,7 @@ Public Class GameInstance
                     Case 0
                         'Wähle Menüpunkt
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(1)
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(2)
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed And LocalClient.Connected Then SwitchToSubmenu(2)
                         If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(3)
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then
                             Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub() [Exit]())
@@ -206,12 +211,28 @@ Public Class GameInstance
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
                         If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then
                             If ServerActive Then
+                                LocalClient.Disconnect()
                                 StopServer()
                             End If
                         End If
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And Not ServerActive Then StartServer()
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And Not ServerActive Then
+                            'If LocalClient.Connected Then LocalClient.Disconnect()
+                            StartServer()
+                            LocalClient.Connect("127.0.0.1", My.Settings.Username)
+                        End If
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                 End Select
+            End If
+
+
+            'Grab data from Server in a set interval
+            If IsConnectedToServer Then
+                ServerRefreshTimer += gameTime.ElapsedGameTime.TotalMilliseconds
+                If ServerRefreshTimer > ServerAutoRefresh Then
+                    ServerRefreshTimer = 0
+                    MenschenOnline = LocalClient.GetOnlineMemberCount
+                    OnlineGameInstances = LocalClient.GetGamesList
+                End If
             End If
         End If
 
@@ -248,10 +269,6 @@ Public Class GameInstance
                 Select Case Submenu
                     Case 0
                         'Zeichne Serverheading
-                        Dim txtA As String = "Username: " & My.Settings.Username
-                        Dim txtB As String = "No server connected."
-                        SpriteBatch.DrawString(MediumFont, txtA, New Vector2(20, 40), FgColor)
-                        SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
                         'Zeichne Texte
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Start Game").X / 2, 225), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Join Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Join Round").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
@@ -276,13 +293,17 @@ Public Class GameInstance
                         SpriteBatch.DrawString(MediumFont, "Join Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Join Round").X / 2, 525), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                     Case 3
-                        Dim txtB As String = "No server connected."
-                        SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
                         SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer Or ServerActive, FgColor, Color.Red))
                         SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
                         SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                 End Select
+
+                'Zeichne Info
+                Dim txtA As String = "Username: " & My.Settings.Username
+                Dim txtB As String = If(IsConnectedToServer, "Connected to: " & Environment.NewLine & LocalClient.Hostname & Environment.NewLine & MenschenOnline & " human(s) online.", "No server connected.")
+                SpriteBatch.DrawString(MediumFont, txtA, New Vector2(20, 40), FgColor)
+                SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
             Else
                 'Zeichne Startbildschirm
                 Dim titletxt As String = "Betreten Verboten!"
@@ -352,7 +373,7 @@ Public Class GameInstance
 
     Private ReadOnly Property IsConnectedToServer() As Boolean
         Get
-            Return False
+            Return LocalClient.Connected
         End Get
     End Property
 

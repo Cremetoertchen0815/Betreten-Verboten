@@ -1,5 +1,6 @@
 ﻿Imports System
 Imports Betreten_Verboten.Framework.Tweening
+Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Content
 Imports Microsoft.Xna.Framework.Graphics
@@ -20,6 +21,7 @@ Public Module Program
     Friend Property ScaleMatrix As Matrix
     Friend Property DefaultFont As SpriteFont
     Friend Property GameClassInstance As GameInstance
+    Friend Property LocalClient As Client
 
     ''' <summary>
     ''' Hier steigt die Anwendung ein.

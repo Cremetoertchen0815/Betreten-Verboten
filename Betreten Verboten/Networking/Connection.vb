@@ -7,5 +7,6 @@ Namespace Networking
         Public Property streamw As StreamWriter
         Public Property streamr As StreamReader
         Public Property nick As String ' natürlich optional, aber für die identifikation des clients empfehlenswert.
+        Public Property BlastReady As Boolean = False
     End Class
 End Namespace

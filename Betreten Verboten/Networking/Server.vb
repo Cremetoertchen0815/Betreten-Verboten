@@ -13,6 +13,7 @@ Namespace Networking
         Private endpoint As IPEndPoint = New IPEndPoint(IPAddress.Any, 187)
         Private list As New List(Of Connection)
         Private games As New Dictionary(Of Integer, Game)
+        Private RNG As New Random
 
         Public Sub StartServer()
             MainThread = New Thread(AddressOf ServerMainSub)
@@ -66,16 +67,16 @@ Namespace Networking
                     Select Case con.streamr.ReadLine()
                         Case "list"
                             For Each element In games
-                                Dim playercount As Integer = element.Value.GetPlayerCount
-                                If playercount < 4 Then
+                                If element.Value.GetPlayerCount < 4 Then
                                     con.streamw.WriteLine(element.Key.ToString)
                                     con.streamw.WriteLine(element.Value.Name.ToString)
-                                    con.streamw.WriteLine(playercount.ToString)
+                                    con.streamw.WriteLine(element.Value.GetPlayerCount.ToString)
                                 End If
                             Next
-                            con.streamw.WriteLine("EOF")
+                            con.streamw.WriteLine("That's it!")
                         Case "join"
                             Try
+                                ''sd
                                 Dim id As Integer = CInt(con.streamr.ReadLine)
                                 Dim gaem As Game = games(id)
                                 If gaem.GetPlayerCount >= 4 Then Throw New NotImplementedException
@@ -89,16 +90,56 @@ Namespace Networking
                                 For i As Integer = 0 To 3
                                     con.streamw.WriteLine(gaem.Players(i).Name)
                                 Next
-                                con.streamw.WriteLine("Okidoki!")
+                                If con.streamr.ReadLine() <> "Okidoki!" Then Throw New NotImplementedException
+                                con.streamw.WriteLine("LET'S HAVE A BLAST!")
+                                EnterGameBlastMode(con, gaem)
                             Catch ex As Exception
-
+                                con.streamw.WriteLine("Sorry m8!")
                             End Try
+                        Case "create"
+                            Try
+                                Dim gamename As String = con.streamr.ReadLine
+                                Dim nugaem As New Game With {.HostConnection = con, .Name = gamename}
+                                Dim types As SpielerTyp() = {SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online}
+                                For i As Integer = 0 To 3
+                                    types(i) = CInt(con.streamr.ReadLine())
+                                    Select Case types(i)
+                                        Case SpielerTyp.Local
+                                            Dim name As String = con.streamr.ReadLine
+                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = False, .Connection = con}
+                                        Case SpielerTyp.CPU
+                                            Dim name As String = con.streamr.ReadLine
+                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = False}
+                                    End Select
+                                Next
+                                If con.streamr.ReadLine() <> "Okidoki!" Then Throw New NotImplementedException
+                                games.Add(RNG.Next, nugaem)
+                                con.streamw.WriteLine("LET'S HAVE A BLAST!")
+                                EnterGameBlastMode(con, nugaem)
+                            Catch ex As Exception
+                                con.streamw.WriteLine("Sorry m8!")
+                            End Try
+                        Case "membercount"
+                            con.streamw.WriteLine(list.Count)
                     End Select
                 Loop
-                con.streamw.WriteLine("Bye!")
             Catch ' die aktuelle überwachte verbindung hat sich wohl verabschiedet.
             End Try
+
+            If con.stream.CanWrite Then
+                con.streamw.WriteLine("Bye!")
+                con.stream.Close()
+            End If
             list.Remove(con)
+        End Sub
+
+        Private Sub EnterGameBlastMode(con As Connection, gaem As Game)
+            'Warte auf alle Spieler
+            Do
+                For i As Integer = 0 To 3
+
+                Next
+            Loop
         End Sub
 
         Private Function AlreadyContainsNickname(nick As String) As Boolean
