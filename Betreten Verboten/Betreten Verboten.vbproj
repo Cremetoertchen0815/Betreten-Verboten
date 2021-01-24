@@ -110,6 +110,9 @@
     <Compile Include="Framwork\UI\IParent.vb" />
     <Compile Include="GameRoom.vb" />
     <Compile Include="GameInstance.vb" />
+    <Compile Include="Networking\Connection.vb" />
+    <Compile Include="Networking\Game.vb" />
+    <Compile Include="Networking\Server.vb" />
     <Compile Include="Player.vb" />
     <Compile Include="Program.vb" />
     <Compile Include="Properties\AssemblyInfo.vb" />

@@ -1,4 +1,5 @@
-﻿Imports Microsoft.Xna.Framework
+﻿Imports Betreten_Verboten.Networking
+Imports Microsoft.Xna.Framework
 
 ''' <summary>
 ''' Kapselt alle wichtigen Eigenschaften und Methoden eine Spielers
@@ -23,6 +24,8 @@ Public Class Player
     Public Property Spielfiguren As Integer() = {20, 23, 35, 42} '{-1, -1, -1, -1}
 
     Public Property Schwierigkeit As Difficulty = Difficulty.Easy
+
+    Public Property Connection As Connection
 
     Public Property Bereit As Boolean = True
 

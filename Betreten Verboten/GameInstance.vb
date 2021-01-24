@@ -2,6 +2,7 @@
 Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.Graphics.PostProcessing
 Imports Betreten_Verboten.Framework.Tweening
+Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
@@ -10,7 +11,7 @@ Imports Microsoft.Xna.Framework.Input
 ''' Enthällt das Menu des Spiels und verwaltet die Spiele-Session
 ''' </summary>
 Public Class GameInstance
-    Inherits Game
+    Inherits Microsoft.Xna.Framework.Game
 
     'Menü Flags
     Friend InGame As Boolean = False 'Gibt an, ob das Menü geupdatet werden soll, oder der GameRoom
@@ -203,8 +204,12 @@ Public Class GameInstance
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                     Case 3
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then
+                            If ServerActive Then
+                                StopServer()
+                            End If
+                        End If
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And Not ServerActive Then StartServer()
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                 End Select
             End If
@@ -273,15 +278,15 @@ Public Class GameInstance
                     Case 3
                         Dim txtB As String = "No server connected."
                         SpriteBatch.DrawString(MediumFont, txtB, New Vector2(GameSize.X - MediumFont.MeasureString(txtB).X - 20, 40), FgColor)
-                        SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer, Color.Red, FgColor))
-                        SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
-                        SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(IsConnectedToServer, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer Or ServerActive, FgColor, Color.Red))
+                        SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
                         SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                 End Select
             Else
                 'Zeichne Startbildschirm
                 Dim titletxt As String = "Betreten Verboten!"
-                Dim starttxt As String = "---PRESS START---"
+                Dim starttxt As String = "---PRESS ENTER---"
                 Dim copyrighttxt As String = "Made by der cooleren Informatikgruppe }:)"
                 SpriteBatch.DrawString(TitleFont, titletxt, New Vector2((GameSize.X - TitleFont.MeasureString(titletxt).X) / 2, 200), FgColor)
                 SpriteBatch.DrawString(MediumFont, starttxt, New Vector2((GameSize.X - MediumFont.MeasureString(starttxt).X) / 2, 800), FgColor * Blinker.Value)
