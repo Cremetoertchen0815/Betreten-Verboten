@@ -7,7 +7,7 @@
         Public Function GetPlayerCount() As Integer
             Dim cnt As Integer = 0
             For Each element In Players
-                If Players IsNot Nothing Then cnt += 1
+                If element IsNot Nothing AndAlso element.Bereit Then cnt += 1
             Next
             Return cnt
         End Function

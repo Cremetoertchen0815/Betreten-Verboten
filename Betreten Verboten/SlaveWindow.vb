@@ -10,13 +10,12 @@ Imports Betreten_Verboten.Framework.Graphics.PostProcessing
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
 ''' </summary>
-Public Class GameRoom
+Public Class SlaveWindow
 
     'Spiele-Flags und Variables
     Friend Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
-    Friend NetworkMode As Boolean = False
     Private SpielerIndex As Integer = -1 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
-    Private UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
+    Friend UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
     Private Status As SpielStatus 'Speichert den aktuellen Status des Spiels
     Private WürfelAktuelleZahl As Integer 'Speichert den WErt des momentanen Würfels
     Private WürfelWerte As Integer() 'Speichert die Werte der Würfel
@@ -69,14 +68,6 @@ Public Class GameRoom
     Private Const ErrorCooldown As Integer = 1200
     Private Const RollDiceCooldown As Integer = 800
     Private Const CPUThinkingTime As Integer = 1500
-
-    'Private Const FDist As Integer = 85
-    'Private Const WürfelDauer As Integer = 1
-    'Private Const WürfelAnimationCooldown As Integer = 1
-    'Private Const FigurSpeed As Integer = 1
-    'Private Const ErrorCooldown As Integer = 1
-    'Private Const RollDiceCooldown As Integer = 1
-    'Private Const CPUThinkingTime As Integer = 1
 
     Friend Sub Init()
         'Bereite Flags und Variablen vor
@@ -145,7 +136,7 @@ Public Class GameRoom
         'Zeichne Spielfiguren
         For j = 0 To 3
             Dim pl As Player = Spielers(j)
-            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex And pl.Typ = SpielerTyp.Local, SelectFader.Value, 1.0F)
+            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex And SpielerIndex = UserIndex, SelectFader.Value, 1.0F)
             For k As Integer = 0 To 3
                 Dim chr As Integer = pl.Spielfiguren(k)
                 Select Case chr
@@ -167,7 +158,7 @@ Public Class GameRoom
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
         'Zeichne Mini-Würfel
-        If Status <> SpielStatus.WarteAufOnlineSpieler Then
+        If (Status = SpielStatus.Würfel Or Status = SpielStatus.WähleFigur Or Status = SpielStatus.FahreFelder) And SpielerIndex = UserIndex Then
             For i As Integer = 0 To WürfelWerte.Length - 1 'If(Spielers(SpielerIndex).Typ = SpielerTyp.CPU And Not DreifachWürfeln, 1, WürfelWerte.Length - 1)
                 If SpielerIndex = UserIndex And WürfelWerte(i) > 0 Then
                     SpriteBatch.Draw(WürfelAugen, New Rectangle(1590 + i * 70, 600, 50, 50), GetWürfelSourceRectangle(WürfelWerte(i)), HUDColor)
@@ -202,171 +193,88 @@ Public Class GameRoom
 
         If Not StopUpdating Then
 
-            'Prüfe, ob die Runde gewonnen wurde und beende gegebenenfalls die Runde
-            Dim win As Integer = CheckWin()
-            If win > -1 Then
-                ShowDice = False
-                HUDInstructions.Text = "Game over!"
-                PostChat(Spielers(win).Name & " won!", Color.White)
-                SendWinFlag(win)
-                Status = SpielStatus.SpielZuEnde
-            End If
-
-            'Setze den lokalen Spieler
-            If SpielerIndex > -1 AndAlso Spielers(SpielerIndex).Typ = SpielerTyp.Local Then UserIndex = SpielerIndex
-
             'Update die Spielelogik
             Select Case Status
                 Case SpielStatus.Würfel
 
-                    Select Case Spielers(SpielerIndex).Typ
-                        Case SpielerTyp.Local
-                            'Manuelles Würfeln für lokalen Spieler
-                            'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
-                            If (New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released) Or (kstate.IsKeyDown(Keys.Space) And lastkstate.IsKeyUp(Keys.Space)) Then
-                                WürfelTriggered = True
-                                WürfelTimer = 0
-                                WürfelAnimationTimer = -1
-                            End If
+                    'Manuelles Würfeln für lokalen Spieler
+                    'Prüft und speichert, ob der Würfel-Knopf gedrückt wurde
+                    If (New Rectangle(1570, 700, 300, 300).Contains(mpos) And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released) Or (kstate.IsKeyDown(Keys.Space) And lastkstate.IsKeyUp(Keys.Space)) Then
+                        WürfelTriggered = True
+                        WürfelTimer = 0
+                        WürfelAnimationTimer = -1
+                    End If
 
-                            'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
-                            If WürfelTriggered Then
+                    'Solange Knopf gedrückt, generiere zufällige Zahl in einem Intervall von 50ms
+                    If WürfelTriggered Then
 
-                                WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
-                                'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
+                        'Implementiere einen Cooldown für die Würfelanimation
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
-                                If WürfelTimer > WürfelDauer Then
-                                    WürfelTimer = 0
-                                    WürfelTriggered = False
-                                    'Gebe Würfe-Ergebniss auf dem Bildschirm aus
-                                    HUDInstructions.Text = "You got a " & WürfelAktuelleZahl.ToString & "!"
-                                    StopUpdating = True
+                        If WürfelTimer > WürfelDauer Then
+                            WürfelTimer = 0
+                            WürfelTriggered = False
+                            'Gebe Würfe-Ergebniss auf dem Bildschirm aus
+                            HUDInstructions.Text = "You got a " & WürfelAktuelleZahl.ToString & "!"
+                            StopUpdating = True
 
-                                    For i As Integer = 0 To WürfelWerte.Length - 1
-                                        If WürfelWerte(i) = 0 Then
-                                            'Speiechere Würfel-Wert nach kurzer Pause und wiederhole
-                                            Dim it As Integer = i 'Zwischenvariable zur problemlosen Verwendung von i im Lambda-Ausdruck in der nächsten Zeile
-                                            Automator.Add(New TimerTransition(RollDiceCooldown, Sub()
-                                                                                                    WürfelWerte(it) = WürfelAktuelleZahl
-                                                                                                    StopUpdating = False
-                                                                                                    'Prüfe, ob Würfeln beendet werden soll
-                                                                                                    If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And Not (it = 0 And WürfelAktuelleZahl >= 6)) Or (DreifachWürfeln And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
-                                                                                                    WürfelAktuelleZahl = 0
-                                                                                                End Sub))
+                            For i As Integer = 0 To WürfelWerte.Length - 1
+                                If WürfelWerte(i) = 0 Then
+                                    'Speiechere Würfel-Wert nach kurzer Pause und wiederhole
+                                    Dim it As Integer = i 'Zwischenvariable zur problemlosen Verwendung von i im Lambda-Ausdruck in der nächsten Zeile
+                                    Automator.Add(New TimerTransition(RollDiceCooldown, Sub()
+                                                                                            WürfelWerte(it) = WürfelAktuelleZahl
+                                                                                            StopUpdating = False
+                                                                                            'Prüfe, ob Würfeln beendet werden soll
+                                                                                            If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And Not (it = 0 And WürfelAktuelleZahl >= 6)) Or (DreifachWürfeln And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
+                                                                                            WürfelAktuelleZahl = 0
+                                                                                        End Sub))
 
-                                            'Beende Schleife
-                                            Exit For
-                                        End If
-                                    Next
+                                    'Beende Schleife
+                                    Exit For
                                 End If
-                            End If
-                        Case SpielerTyp.CPU
-                            'Automatisches Würfeln im Hintergrund für CPU
-                            WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
-                            If WürfelTimer > CPUThinkingTime Then
-                                'Nach kurzem Delay, fülle Würfel-Array mit Zufallszahlen
-                                For i As Integer = 0 To WürfelWerte.Length - 1
-                                    WürfelWerte(i) = RNG.Next(1, 7)
-                                Next
-                                CalcMoves()
-                            End If
-                    End Select
+                            Next
+                        End If
+                    End If
 
                 Case SpielStatus.WähleFigur
 
                     Dim pl As Player = Spielers(SpielerIndex)
-                    Select Case pl.Typ
-                        Case SpielerTyp.Local
-                            'Manuelle Auswahl für lokale Spieler
-                            For k As Integer = 0 To 3
-                                Dim chr As Integer = pl.Spielfiguren(k)
-                                Dim vec As Vector2 = Vector2.Zero
-                                Dim matrx As Matrix = transmatrices(SpielerIndex)
-                                Select Case chr
-                                    Case -1
-                                    Case 40, 41, 42, 43 'Figur in Haus
-                                        vec = GetSpielfeldPositionen(chr - 26)
-                                    Case Else 'Figur auf Feld
-                                        vec = GetSpielfeldPositionen((chr Mod 10) + 4)
-                                        matrx = transmatrices((SpielerIndex + Math.Floor(chr / 10)) Mod 4)
-                                End Select
+                    'Manuelle Auswahl für lokale Spieler
+                    For k As Integer = 0 To 3
+                        Dim chr As Integer = pl.Spielfiguren(k)
+                        Dim vec As Vector2 = Vector2.Zero
+                        Dim matrx As Matrix = transmatrices(SpielerIndex)
+                        Select Case chr
+                            Case -1
+                            Case 40, 41, 42, 43 'Figur in Haus
+                                vec = GetSpielfeldPositionen(chr - 26)
+                            Case Else 'Figur auf Feld
+                                vec = GetSpielfeldPositionen((chr Mod 10) + 4)
+                                matrx = transmatrices((SpielerIndex + Math.Floor(chr / 10)) Mod 4)
+                        End Select
 
-                                'Anti-Stuck-Fuck
-                                Dim defaultmov As Integer = Spielers(SpielerIndex).Spielfiguren(k)
+                        'Anti-Stuck-Fuck
+                        Dim defaultmov As Integer = Spielers(SpielerIndex).Spielfiguren(k)
 
-                                'Prüfe Figur nach Mouse-Klick
-                                If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
-                                    If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
-                                        HUDInstructions.Text = "Incorrect move!"
-                                    Else
-                                        'Setze flags
-                                        Status = SpielStatus.FahreFelder
-                                        FigurFaderZiel = (SpielerIndex, k)
-                                        'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                                        FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * FigurSpeed), defaultmov, defaultmov + Fahrzahl, AddressOf CheckKick)
-                                        Automator.Add(FigurFader)
-                                        SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
-                                        StopUpdating = False
-                                    End If
-                                    Exit For
-                                End If
-                            Next
-
-                        Case SpielerTyp.CPU
-                            'TODO: FÜge CPU-Code ein(Auswahl, welcher Zug optimal ist)
-                            CPUTimer += gameTime.ElapsedGameTime.TotalMilliseconds
-                            If CPUTimer > CPUThinkingTime Then
-                                CPUTimer = 0
-
-                                Select Case Spielers(SpielerIndex).Schwierigkeit
-                                    Case Difficulty.Easy
-                                        'Wähle alle möglichen Zügen aus
-                                        Dim ichmagzüge As New List(Of Integer)
-                                        Dim defaultmov As Integer
-                                        For i As Integer = 0 To 3
-                                            defaultmov = pl.Spielfiguren(i)
-                                            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
-                                        Next
-
-                                        'Prüfe ob Zug möglich
-                                        If ichmagzüge.Count = 0 Then SwitchPlayer() : Exit Select
-
-                                        'Berechne zufällig das zu fahrende Feld
-                                        Dim k As Integer = ichmagzüge(RNG.Next(0, ichmagzüge.Count))
-                                        defaultmov = pl.Spielfiguren(k)
-                                        'Setze flags
-                                        Status = SpielStatus.FahreFelder
-                                        FigurFaderZiel = (SpielerIndex, k)
-                                        'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                                        FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * FigurSpeed), defaultmov, defaultmov + Fahrzahl, AddressOf CheckKick)
-                                        Automator.Add(FigurFader)
-                                        SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
-                                        StopUpdating = False
-                                End Select
+                        'Prüfe Figur nach Mouse-Klick
+                        If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
+                            If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
+                                HUDInstructions.Text = "Incorrect move!"
+                            Else
+                                'Setze flags
+                                Status = SpielStatus.Waitn
+                                SubmitResults(k, defaultmov + Fahrzahl)
+                                StopUpdating = False
                             End If
-                    End Select
+                            Exit For
+                        End If
+                    Next
 
                 Case SpielStatus.FahreFelder
                     'Fahre Felder
                     If FigurFader IsNot Nothing Then Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFader.Value
-                    'Falls die Zug-Animation fertig ist
-                    If FigurFader IsNot Nothing AndAlso FigurFader.State = TransitionState.Done Then SwitchPlayer()
-                Case SpielStatus.WarteAufOnlineSpieler
-                    HUDInstructions.Text = "Waiting for all players to connect..."
-
-                    'Prüfe einer die vier Spieler nicht anwesend sind, kehre zurück
-                    For Each sp In Spielers
-                        If sp Is Nothing OrElse Not sp.Bereit Then Exit Select 'Falls ein SPieler noch nicht belegt/bereit, breche Spielstart ab
-                    Next
-
-                    'Falls vollzählig, starte Spiel
-                    StopUpdating = True
-                    Automator.Add(New TimerTransition(800, Sub()
-                                                               PostChat("The game has started!", Color.White)
-                                                               SendBeginGaem()
-                                                               SwitchPlayer()
-                                                           End Sub))
                 Case SpielStatus.SpielZuEnde
                     StopUpdating = True
             End Select
@@ -380,11 +288,11 @@ Public Class GameRoom
             HUDChatBtn.Color = HUDColor : HUDChatBtn.Border = New ControlBorder(HUDColor, HUDChatBtn.Border.Width)
             HUDNameBtn.Text = If(SpielerIndex > -1, Spielers(SpielerIndex).Name, "")
             HUDNameBtn.Color = If(SpielerIndex > -1, playcolor(SpielerIndex), Color.White)
-            HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (Spielers(SpielerIndex).Typ = SpielerTyp.Local)
+            HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (SpielerIndex = UserIndex)
         End If
 
         'Misc things
-        If NetworkMode Then ReadAndProcessInputData()
+        ReadAndProcessInputData()
         If kstate.IsKeyDown(Keys.Escape) And lastkstate.IsKeyUp(Keys.Escape) Then MenuButton()
         HUD.Update(gameTime, mstate, Matrix.Identity)
         lastmstate = mstate
@@ -395,70 +303,78 @@ Public Class GameRoom
     Private Sub ReadAndProcessInputData()
         Dim data As String() = LocalClient.ReadStream()
         For Each element In data
-            Dim source As Integer = CInt(element(0).ToString)
-            Dim command As Char = element(1)
+            Dim command As Char = element(0)
             Select Case command
                 Case "a"c 'Player arrived
+                    Dim source As Integer = CInt(element(1).ToString)
                     Spielers(source).Name = element.Substring(2)
                     Spielers(source).Bereit = True
                     PostChat(Spielers(source).Name & " arrived!", Color.White)
-                    SendPlayerArrived(source, Spielers(source).Name)
-                Case "c"c 'Sent chat message
-                    Dim text As String = element.Substring(2)
-                    PostChat("[" & Spielers(source).Name & "]: " & text, playcolor(source))
-                    SendChatMessage(source, text)
-                Case "k"c
-                    Dim playr As Integer = CInt(element(2).ToString)
-                    Dim figur As Integer = CInt(element(3).ToString)
-                    Spielers(playr).Spielfiguren(figur) = -1
-                    SendKickFigure(playr, figur, source)
+                Case "b"c 'Begin gaem
                     Status = SpielStatus.Waitn
-                    FigurFader = Nothing
-                Case "n"c
-                    SwitchPlayer()
-                Case "s"c
+                    PostChat("The game has started!", Color.White)
+                Case "c"c 'Sent chat message
+                    Dim source As Integer = CInt(element(1).ToString)
+                    PostChat("[" & Spielers(source).Name & "]: " & element.Substring(2), playcolor(source))
+                Case "k"c 'Kick player
+                    Dim playr As Integer = CInt(element(1).ToString)
+                    Dim figur As Integer = CInt(element(2).ToString)
+                    Dim by As Integer = CInt(element(3).ToString)
+                    Spielers(playr).Spielfiguren(figur) = -1
+                    PostChat(Spielers(by).Name & " kicked " & Spielers(playr).Name & "!", Color.White)
+                Case "n"c 'Next player
+                    Dim who As Integer = CInt(element(1).ToString)
+                    SpielerIndex = who
+                    If who = UserIndex Then
+                        PrepareMove()
+                    Else
+                        Status = SpielStatus.Waitn
+                    End If
+                Case "s"c 'Create transition
+                    Dim playr As Integer = CInt(element(1).ToString)
                     Dim figur As Integer = CInt(element(2).ToString)
                     Dim destination As Integer = CInt(element.Substring(3).ToString)
-                    SendFigureTransition(source, figur, destination)
-                    'Animiere wie die Figur sich nach vorne bewegt, anschließend kehre zurück zum nichts tun
-                    Dim defaultmov As Integer = Math.Max(Spielers(source).Spielfiguren(figur), 0)
+
                     Status = SpielStatus.FahreFelder
-                    FigurFaderZiel = (source, figur)
-                    FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear((destination - defaultmov) * FigurSpeed), defaultmov, destination, Sub() Status = SpielStatus.Waitn)
+                    FigurFaderZiel = (playr, figur)
+                    'Animiere wie die Figur sich nach vorne bewegt, anschließend kehre zurück zum nichts tun
+                    Dim defaultmov As Integer = Math.Max(Spielers(playr).Spielfiguren(figur), 0)
+                    FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear((destination - defaultmov) * FigurSpeed), defaultmov, destination, Sub()
+                                                                                                                                                                             If SpielerIndex = UserIndex Then
+                                                                                                                                                                                 CheckKick(figur)
+                                                                                                                                                                                 SubmitResults(0, -2)
+                                                                                                                                                                             Else
+                                                                                                                                                                                 Status = SpielStatus.Waitn
+                                                                                                                                                                             End If
+                                                                                                                                                                         End Sub)
                     Automator.Add(FigurFader)
+                Case "w"c 'Spieler hat gewonnen
+                    Dim playr As Integer = CInt(element(1).ToString)
+                    ShowDice = False
+                    HUDInstructions.Text = "Game over!"
+                    PostChat(Spielers(playr).Name & " won!", Color.White)
+                    Status = SpielStatus.SpielZuEnde
             End Select
         Next
     End Sub
 
-    Private Sub SendPlayerArrived(index As Integer, name As String)
-        SendNetworkMessageToAll("a" & index.ToString & name)
+    Friend Sub SendArrived()
+        LocalClient.WriteStream("a" & My.Settings.Username)
     End Sub
 
-    Private Sub SendBeginGaem()
-        SendNetworkMessageToAll("b")
+    Private Sub SendChatMessage(text As String)
+        LocalClient.WriteStream("c" & text)
+    End Sub
+    Private Sub SendKickFigure(who As Integer, figur As Integer)
+        LocalClient.WriteStream("k" & who.ToString & figur.ToString)
     End Sub
 
-    Private Sub SendChatMessage(index As Integer, text As String)
-        SendNetworkMessageToAll("c" & index.ToString & text)
-    End Sub
-    Private Sub SendKickFigure(who As Integer, figur As Integer, by As Integer)
-        SendNetworkMessageToAll("k" & who.ToString & figur.ToString & by.ToString)
-    End Sub
-
-    Private Sub SendNewPlayerActive(who As Integer)
-        SendNetworkMessageToAll("n" & who.ToString)
-    End Sub
-
-    Private Sub SendFigureTransition(who As Integer, figur As Integer, destination As Integer)
-        SendNetworkMessageToAll("s" & who.ToString & figur.ToString & destination.ToString)
-    End Sub
-
-    Private Sub SendWinFlag(who As Integer)
-        SendNetworkMessageToAll("w" & who.ToString)
-    End Sub
-
-    Private Sub SendNetworkMessageToAll(message As String)
-        If NetworkMode Then LocalClient.WriteStream(message)
+    Private Sub SubmitResults(figur As Integer, destination As Integer)
+        If destination < -1 Then
+            LocalClient.WriteStream("n")
+        Else
+            LocalClient.WriteStream("s" & figur & destination)
+        End If
     End Sub
 #End Region
 
@@ -477,12 +393,10 @@ Public Class GameRoom
             'Hole Figur aus Homebase und prüfe ob Spieler gekickt wird
             Spielers(SpielerIndex).Spielfiguren(homebase) = 0
             FigurFaderZiel = (SpielerIndex, homebase)
-            CheckKick()
+            CheckKick(homebase)
             'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
             If Not IsFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl) Then
-                FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear(Fahrzahl * FigurSpeed), 0, Fahrzahl, AddressOf CheckKick)
-                Automator.Add(FigurFader)
-                SendFigureTransition(SpielerIndex, homebase, Fahrzahl)
+                SubmitResults(homebase, Fahrzahl)
             Else
                 StopUpdating = True
                 HUDInstructions.Text = "Field already covered! Move with the other piece!"
@@ -501,7 +415,7 @@ Public Class GameRoom
             StopUpdating = True
             HUDInstructions.Text = "No move possible!"
             Automator.Add(New TimerTransition(1000, Sub()
-                                                        SwitchPlayer()
+                                                        SubmitResults(0, -2)
                                                         StopUpdating = False
                                                     End Sub))
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
@@ -512,13 +426,12 @@ Public Class GameRoom
         End If
     End Sub
 
-    Private Sub CheckKick()
+    Private Sub CheckKick(figure As Integer)
         'Berechne globale Spielfeldposition der rauswerfenden Figur
-        Dim playerA As Integer = FigurFaderZiel.Item1
-        Dim fieldA As Integer = Spielers(playerA).Spielfiguren(FigurFaderZiel.Item2)
-        Dim fa As Integer = PlayerFieldToGlobalField(fieldA, playerA)
+        Dim fieldA As Integer = Spielers(UserIndex).Spielfiguren(figure)
+        Dim fa As Integer = PlayerFieldToGlobalField(fieldA, UserIndex)
         'Loope durch andere Spieler
-        For i As Integer = playerA + 1 To playerA + 3
+        For i As Integer = UserIndex + 1 To UserIndex + 3
             'Loope durch alle Spielfiguren eines jeden Spielers
             For j As Integer = 0 To 3
                 'Berechne globale Spielfeldposition der rauszuwerfenden Spielfigur
@@ -527,26 +440,12 @@ Public Class GameRoom
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
                 'Falls globale Spielfeldposition identisch und 
                 If fieldB >= 0 And fieldB <= 40 And fb = fa Then
-                    Spielers(playerB).Spielfiguren(j) = -1 'Kicke Spielfigur
-                    PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)
-                    SendKickFigure(playerB, j, SpielerIndex)
+                    SendKickFigure(playerB, j)
                     Exit Sub
                 End If
             Next
         Next
     End Sub
-
-    Private Function CheckWin() As Integer
-        For i As Integer = 0 To 3
-            Dim pl As Player = Spielers(i)
-            Dim check As Boolean = True
-            For j As Integer = 0 To 3
-                If pl.Spielfiguren(j) < 40 Then check = False
-            Next
-            If check Then Return i
-        Next
-        Return -1
-    End Function
 
     Private Function CanDoAMove() As Boolean
         Dim pl As Player = Spielers(SpielerIndex)
@@ -604,10 +503,6 @@ Public Class GameRoom
     Private Function PlayerFieldToGlobalField(field As Integer, player As Integer) As Integer
         Return ((field + player * 10 + 1) Mod 40) - 1
     End Function
-
-    'Private Function GlobalFieldToPlayerField(field As Integer, player As Integer) As Integer
-    '    Return ((field - player * 10 - 1) Mod 40) + 1
-    'End Function
 
     Private Function GetSecondDiceAfterSix(player As Integer) As Integer
         For i As Integer = 0 To WürfelWerte.Length - 2
@@ -683,12 +578,10 @@ Public Class GameRoom
         HUDChat.Scroll(Chat.Count - 1)
     End Sub
 
-    Private Sub SwitchPlayer()
+    Private Sub PrepareMove()
         'Setze benötigte Flags
-        SpielerIndex = (SpielerIndex + 1) Mod 4
-        If Spielers(SpielerIndex).Typ <> SpielerTyp.Online Then Status = SpielStatus.Würfel Else Status = SpielStatus.Waitn
-        SendNewPlayerActive(SpielerIndex)
-        If Spielers(SpielerIndex).Typ = SpielerTyp.Local Then UserIndex = SpielerIndex
+        SpielerIndex = UserIndex
+        Status = SpielStatus.Würfel
         ShowDice = True
         StopUpdating = False
         HUDInstructions.Text = "Roll the Dice!"
@@ -712,8 +605,7 @@ Public Class GameRoom
             chatbtnpressed = True
             Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
             If txt <> "" Then
-                SendChatMessage(SpielerIndex, txt)
-                PostChat("[" & Spielers(UserIndex).Name & "]: " & txt, HUDColor)
+                SendChatMessage(txt)
             End If
             chatbtnpressed = False
         End If

@@ -1,4 +1,5 @@
 ﻿Imports System
+Imports System.Diagnostics
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
@@ -32,5 +33,7 @@ Public Module Program
         GameClassInstance = New GameInstance
         GameClassInstance.Run() 'Führe Spiel aus.
         GameClassInstance.Dispose()
+        StopServer()
+        Process.GetCurrentProcess.Kill()
     End Sub
 End Module

@@ -1,5 +1,4 @@
 ﻿Imports Betreten_Verboten.Networking
-Imports Microsoft.Xna.Framework
 
 ''' <summary>
 ''' Kapselt alle wichtigen Eigenschaften und Methoden eine Spielers
@@ -15,13 +14,12 @@ Public Class Player
     ''' </summary>
     Public Property Typ As SpielerTyp = SpielerTyp.CPU
 
-    '
     ''' <summary>
     ''' Positionen der vier Spielfiguren.<br></br>
     ''' Positionen der Spielfiguren relativ zur Homebase angegeben(-1 = Homebase, 0 = Start-Feld, 1 = erstes Feld nach Start-Feld, ..., 39 = letztes Feld vor Start-Feld, 40 = erstes Feld im Haus, ..., 43 = letztes Feld in Haus)!
     ''' </summary>
     ''' <returns></returns>
-    Public Property Spielfiguren As Integer() = {43, 42, 41, 38} '{-1, -1, -1, -1}
+    Public Property Spielfiguren As Integer() = {-1, -1, -1, -1} '{-1, -1, 1, 14} {43, 42, 41, 38}
 
     Public Property Schwierigkeit As Difficulty = Difficulty.Easy
 

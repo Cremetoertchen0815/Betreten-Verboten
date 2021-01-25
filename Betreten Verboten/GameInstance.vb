@@ -15,7 +15,9 @@ Public Class GameInstance
 
     'Menü Flags
     Friend InGame As Boolean = False 'Gibt an, ob das Menü geupdatet werden soll, oder der GameRoom
+    Friend InSlave As Boolean = False 'Gibt an, ob das Menü geupdatet werden soll, oder der GameRoom
     Private AktuellesSpiel As GameRoom
+    Private AktuellerSlave As SlaveWindow
     Private Timer As Integer = 0 'Fungiert nicht nur als Zeit-Puffer für den Start-Text, sondern auch als Flag für die Menü-Überblendung
     Private MenuAktiviert As Boolean = False
     Private SingleGameFrame As Boolean = False 'Helper-Flag für den ersten Frame des Spiels
@@ -27,9 +29,11 @@ Public Class GameInstance
     Private OnlineGameInstances As OnlineGameInstance()
     Private ServerRefreshTimer As Integer = 0
     Private MenschenOnline As Integer = 0
+    Private SelectedOnlineGaemIndex As Integer = -1
+    Private ServerTempName As String
 
     'Konstanten
-    Friend Const FadeOverTime As Integer = 800
+    Friend Const FadeOverTime As Integer = 500
     Friend Const ServerAutoRefresh As Integer = 500
 
     'Assets & Faders
@@ -86,6 +90,11 @@ Public Class GameInstance
         AktuellesSpiel.LoadContent()
         AktuellesSpiel.Init()
 
+        'Generiere Test-Spiel
+        AktuellerSlave = New SlaveWindow
+        AktuellerSlave.LoadContent()
+        AktuellerSlave.Init()
+
 
         'Generate temporary main rendertarget for bloom effect
         TempTarget = New RenderTarget2D(
@@ -133,7 +142,7 @@ Public Class GameInstance
 
         'Update die Spieleinstanz
         If InGame Then
-            AktuellesSpiel.Update(gameTime)
+            If InSlave Then AktuellerSlave.Update(gameTime) Else AktuellesSpiel.Update(gameTime)
         Else
             'Implementiere Start-Puffer
             If Timer >= 0 Then Timer += gameTime.ElapsedGameTime.TotalMilliseconds
@@ -168,14 +177,6 @@ Public Class GameInstance
                             Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub() [Exit]())
                             Automator.Add(Schwarzblende)
                         End If
-                        'Wechsel Benutzername
-                        If New Rectangle(New Point(20, 40), MediumFont.MeasureString("Username: " & My.Settings.Username).ToPoint).Contains(mpos) And OneshotPressed Then
-                            OpenInputbox("Enter the new username: ", "Change username", Sub(x)
-                                                                                            My.Settings.Username = x
-                                                                                            My.Settings.Save()
-                                                                                        End Sub, My.Settings.Username)
-
-                        End If
                     Case 1
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
                         If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
@@ -183,50 +184,46 @@ Public Class GameInstance
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 3, 2)
                         If New Rectangle(560, 900, 400, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         If New Rectangle(960, 900, 400, 100).Contains(mpos) And OneshotPressed Then
-                            AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
-                            For i As Integer = 1 To 3
-                                Select Case NewGamePlayers(i)
-                                    Case SpielerTyp.Local
-                                        AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Local, My.Settings.Schwierigkeitsgrad) With {.Name = My.Settings.Username & "-" & (i + 1).ToString}
-                                    Case SpielerTyp.CPU
-                                        AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.CPU, My.Settings.Schwierigkeitsgrad) With {.Name = "CPU " & (i + 1).ToString}
-                                    Case SpielerTyp.Online
-                                        AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Online, My.Settings.Schwierigkeitsgrad) With {.Bereit = False}
-                                End Select
-                            Next
-                            Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
-                                                                                                                                                            InGame = True
-                                                                                                                                                            Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(1000), 0F, 1.0F, BrightFX, "amount", Nothing)
-                                                                                                                                                            Automator.Add(Schwarzblende)
-                                                                                                                                                        End Sub)
-                            Automator.Add(Schwarzblende)
-                        End If
-                    Case 2
-                        If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
-                        If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2)
-                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
-                    Case 3
-                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then
-                            If ServerActive Then
-                                LocalClient.Disconnect()
-                                StopServer()
+
+                            If IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online) Then
+                                OpenInputbox("Enter a name for the round:", "Start Round", AddressOf StartNewRound)
+                            Else
+                                StartNewRound("")
                             End If
                         End If
+                    Case 2
+                        If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex -= 1
+                        If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex += 1
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And SelectedOnlineGaemIndex > -1 Then OpenGaemViaNetwork(OnlineGameInstances(SelectedOnlineGaemIndex))
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
+                        SelectedOnlineGaemIndex = Math.Min(Math.Max(SelectedOnlineGaemIndex, 0), OnlineGameInstances.Length - 1)
+                    Case 3
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed And Not IsConnectedToServer Then OpenInputbox("Enter IP-adress:", "Open server", Sub(x) LocalClient.Connect(x, My.Settings.Username), "127.0.0.1")
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed And IsConnectedToServer Then LocalClient.Disconnect()
                         If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And Not ServerActive Then
                             'If LocalClient.Connected Then LocalClient.Disconnect()
-                            StartServer()
-                            LocalClient.Connect("127.0.0.1", My.Settings.Username)
+                            If LocalClient.TryConnect Then
+                                Microsoft.VisualBasic.MsgBox("Other server already active on this port")
+                            Else
+                                StartServer()
+                                LocalClient.Connect("127.0.0.1", My.Settings.Username)
+                            End If
                         End If
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                 End Select
             End If
 
+            'Wechsel Benutzername
+            If New Rectangle(New Point(20, 40), MediumFont.MeasureString("Username: " & My.Settings.Username).ToPoint).Contains(mpos) And OneshotPressed And Not IsConnectedToServer Then
+                OpenInputbox("Enter the new username: ", "Change username", Sub(x)
+                                                                                My.Settings.Username = x
+                                                                                My.Settings.Save()
+                                                                            End Sub, My.Settings.Username)
+
+            End If
 
             'Grab data from Server in a set interval
-            If IsConnectedToServer Then
+            If IsConnectedToServer And LocalClient.AutomaticRefresh Then
                 ServerRefreshTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                 If ServerRefreshTimer > ServerAutoRefresh Then
                     ServerRefreshTimer = 0
@@ -245,6 +242,33 @@ Public Class GameInstance
         MyBase.Update(gameTime)
     End Sub
 
+    Private Sub StartNewRound(servername As String)
+        LocalClient.AutomaticRefresh = False
+        AktuellesSpiel.NetworkMode = False
+        AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
+        For i As Integer = 1 To 3
+            Select Case NewGamePlayers(i)
+                Case SpielerTyp.Local
+                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Local, My.Settings.Schwierigkeitsgrad) With {.Name = My.Settings.Username & "-" & (i + 1).ToString}
+                Case SpielerTyp.CPU
+                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.CPU, My.Settings.Schwierigkeitsgrad) With {.Name = "CPU " & (i + 1).ToString}
+                Case SpielerTyp.Online
+                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Online, My.Settings.Schwierigkeitsgrad) With {.Bereit = False}
+            End Select
+        Next
+        Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
+                                                                                                                                        If IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online) Then
+                                                                                                                                            If Not LocalClient.CreateGame(servername, AktuellesSpiel.Spielers) Then Microsoft.VisualBasic.MsgBox("Somethings wrong, mate!") Else AktuellesSpiel.NetworkMode = True
+                                                                                                                                        End If
+                                                                                                                                        InGame = True
+                                                                                                                                        InSlave = False
+                                                                                                                                        Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(1000), 0F, 1.0F, BrightFX, "amount", Nothing)
+                                                                                                                                        Automator.Add(Schwarzblende)
+                                                                                                                                    End Sub)
+        Automator.Add(Schwarzblende)
+
+    End Sub
+
     Protected Overrides Sub Draw(ByVal gameTime As GameTime)
 
         'Setze das Render-Ziel zunächst auf das RenderTarget "TempTarget", um später PPFX(post processing effects) hinzuzufügen zu können
@@ -253,7 +277,7 @@ Public Class GameInstance
 
         'Zeichne die Spieleinstanz
         If InGame Then
-            AktuellesSpiel.Draw(gameTime)
+            If InSlave Then AktuellerSlave.Draw(gameTime) Else AktuellesSpiel.Draw(gameTime)
         Else
 
             SpriteBatch.Begin(SpriteSortMode.Deferred, Nothing, SamplerState.AnisotropicClamp, Nothing, Nothing, Nothing, ScaleMatrix)
@@ -286,16 +310,17 @@ Public Class GameInstance
                         SpriteBatch.DrawString(MediumFont, "Back", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("Back").X / 2, 925), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("Start Round").X / 2, 925), FgColor)
                     Case 2
+                        Dim currentgaem As String = If(SelectedOnlineGaemIndex > -1, OnlineGameInstances(SelectedOnlineGaemIndex).Name & "(" & OnlineGameInstances(SelectedOnlineGaemIndex).Players.ToString & "/4)", "[No open rounds]")
                         DrawLine(New Vector2(GameSize.X / 2, 200), New Vector2(GameSize.X / 2, 300), FgColor)
                         SpriteBatch.DrawString(MediumFont, "←", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("←").X / 2, 225), FgColor)
                         SpriteBatch.DrawString(MediumFont, "→", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("→").X / 2, 225), FgColor)
-                        SpriteBatch.DrawString(MediumFont, "[No open rounds]", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("[No open rounds]").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
+                        SpriteBatch.DrawString(MediumFont, currentgaem, New Vector2(GameSize.X / 2 - MediumFont.MeasureString(currentgaem).X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
                         SpriteBatch.DrawString(MediumFont, "Join Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Join Round").X / 2, 525), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                     Case 3
-                        SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
-                        SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer Or ServerActive, FgColor, Color.Red))
-                        SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(IsConnectedToServer Or ServerActive, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Connect to Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Connect to Server").X / 2, 225), If(IsConnectedToServer, Color.Red, FgColor))
+                        SpriteBatch.DrawString(MediumFont, "Disconnect Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Disconnect Server").X / 2, 375), If(IsConnectedToServer, FgColor, Color.Red))
+                        SpriteBatch.DrawString(MediumFont, "Open local Server", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Open local Server").X / 2, 525), If(ServerActive, Color.Red, FgColor))
                         SpriteBatch.DrawString(MediumFont, "Back to Main Menu", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Back to Main Menu").X / 2, 675), FgColor)
                 End Select
 
@@ -357,6 +382,31 @@ Public Class GameInstance
                                                                                                                                         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(1000), 0F, 1.0F, BrightFX, "amount", Nothing)
                                                                                                                                         Automator.Add(Schwarzblende)
                                                                                                                                     End Sub)
+        Automator.Add(Schwarzblende)
+    End Sub
+
+    Private Sub OpenGaemViaNetwork(ins As OnlineGameInstance)
+        Try
+            Dim index As Integer
+            Dim names As String() = New String(3) {}
+            If Not LocalClient.JoinGame(ins.Key, index, names) Then Return
+
+
+            LocalClient.AutomaticRefresh = False
+            AktuellerSlave.UserIndex = index
+            AktuellerSlave.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
+            For i As Integer = 0 To 3
+                AktuellerSlave.Spielers(i) = New Player(SpielerTyp.Online) With {.Name = If(i = index, My.Settings.Username, names(i))}
+            Next
+            Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
+                                                                                                                                            InGame = True
+                                                                                                                                            InSlave = True
+                                                                                                                                            Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(1000), 0F, 1.0F, BrightFX, "amount", Sub() AktuellerSlave.SendArrived())
+                                                                                                                                            Automator.Add(Schwarzblende)
+                                                                                                                                        End Sub)
+        Catch ex As Exception
+            Microsoft.VisualBasic.MsgBox("Error connecting!")
+        End Try
         Automator.Add(Schwarzblende)
     End Sub
 

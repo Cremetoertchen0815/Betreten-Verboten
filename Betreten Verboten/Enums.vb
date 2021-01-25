@@ -10,6 +10,7 @@ Public Enum SpielStatus
     FahreFelder = 2
     SpielZuEnde = 3
     WarteAufOnlineSpieler = 4
+    Waitn = 5
 End Enum
 
 Public Enum PlayFieldPos

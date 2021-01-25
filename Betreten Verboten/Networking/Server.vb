@@ -7,6 +7,7 @@ Imports System.Threading
 Namespace Networking
     Module Server
         Public Property ServerActive As Boolean
+
         Private MainThread As Thread
         Private server As TcpListener
         Private client As New TcpClient
@@ -21,11 +22,6 @@ Namespace Networking
             ServerActive = True
         End Sub
 
-
-        Public Sub StopServer()
-            ServerActive = False
-        End Sub
-
         Private Sub SendToAllClients(ByVal s As String)
             For Each c As Connection In list ' an alle clients weitersenden.
                 Try
@@ -37,34 +33,56 @@ Namespace Networking
 
         Private Sub ServerMainSub()
             'Starte Server
-            server = New TcpListener(endpoint)
-            server.Start()
+            Try
+                server = New TcpListener(endpoint)
+                server.Start()
 
-            While ServerActive ' wir warten auf eine neue verbindung...
-                client = server.AcceptTcpClient
-                Dim c As New Connection ' und erstellen für die neue verbindung eine neue connection...
-                c.stream = client.GetStream
-                c.streamr = New StreamReader(c.stream)
-                c.streamw = New StreamWriter(c.stream) With {.AutoFlush = True}
-                list.Add(c) ' und fügen sie der liste der clients hinzu.
-                ' falls alle anderen das auch lesen sollen können, an alle clients weiterleiten. siehe SendToAllClients
-                Dim t As New Threading.Thread(AddressOf ListenToConnection)
-                t.Start(c)
-            End While
+
+                Do ' wir warten auf eine neue verbindung...
+                    Try
+                        client = server.AcceptTcpClient
+                        Dim c As New Connection ' und erstellen für die neue verbindung eine neue connection...
+                        c.stream = client.GetStream
+                        c.streamr = New StreamReader(c.stream)
+                        c.streamw = New StreamWriter(c.stream) With {.AutoFlush = True}
+                        list.Add(c) ' und fügen sie der liste der clients hinzu.
+                        ' falls alle anderen das auch lesen sollen können, an alle clients weiterleiten. siehe SendToAllClients
+                        Dim t As New Threading.Thread(AddressOf ListenToConnection)
+                        t.Start(c)
+                    Catch
+                    End Try
+                Loop
+
+            Catch ex As Exception
+                Microsoft.VisualBasic.MsgBox("Other server already active!")
+            End Try
+
+        End Sub
+
+        Friend Sub StopServer()
+            Try
+                If ServerActive Then
+                    ServerActive = False
+                    server.Stop()
+                End If
+            Catch
+            End Try
         End Sub
 
 
         Private Sub ListenToConnection(ByVal con As Connection)
             Try
                 con.streamw.WriteLine("Hello there!")
-                If Not con.streamr.ReadLine() = "Wassup?" Then Exit Try
+                If Not ReadString(con) = "Wassup?" Then Exit Try
                 con.streamw.WriteLine("What's your name?")
-                Dim tmpusr As String = con.streamr.ReadLine()
-                If AlreadyContainsNickname(tmpusr) Then Exit Try
+                Dim tmpusr As String = ReadString(con)
+                If AlreadyContainsNickname(tmpusr) And False Then con.streamw.WriteLine("Sorry m8! USername already taken") : Exit Try
                 con.nick = tmpusr
                 con.streamw.WriteLine("Alrighty!")
-                Do While ServerActive
-                    Select Case con.streamr.ReadLine()
+
+                Do
+                    Dim str As String = ReadString(con)
+                    Select Case str
                         Case "list"
                             For Each element In games
                                 If element.Value.GetPlayerCount < 4 Then
@@ -76,8 +94,7 @@ Namespace Networking
                             con.streamw.WriteLine("That's it!")
                         Case "join"
                             Try
-                                ''sd
-                                Dim id As Integer = CInt(con.streamr.ReadLine)
+                                Dim id As Integer = CInt(ReadString(con))
                                 Dim gaem As Game = games(id)
                                 If gaem.GetPlayerCount >= 4 Then Throw New NotImplementedException
                                 Dim index As Integer = -1
@@ -90,54 +107,75 @@ Namespace Networking
                                 For i As Integer = 0 To 3
                                     con.streamw.WriteLine(gaem.Players(i).Name)
                                 Next
-                                If con.streamr.ReadLine() <> "Okidoki!" Then Throw New NotImplementedException
+                                If ReadString(con) <> "Okidoki!" Then Throw New NotImplementedException
                                 con.streamw.WriteLine("LET'S HAVE A BLAST!")
-                                EnterGameBlastMode(con, gaem)
+                                EnterJoinMode(con, gaem, index)
                             Catch ex As Exception
                                 con.streamw.WriteLine("Sorry m8!")
                             End Try
                         Case "create"
                             Try
-                                Dim gamename As String = con.streamr.ReadLine
+                                Dim gamename As String = ReadString(con)
                                 Dim nugaem As New Game With {.HostConnection = con, .Name = gamename}
                                 Dim types As SpielerTyp() = {SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online}
                                 For i As Integer = 0 To 3
-                                    types(i) = CInt(con.streamr.ReadLine())
+                                    types(i) = CInt(ReadString(con))
                                     Select Case types(i)
                                         Case SpielerTyp.Local
-                                            Dim name As String = con.streamr.ReadLine
-                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = False, .Connection = con}
+                                            Dim name As String = ReadString(con)
+                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = True, .Connection = con}
                                         Case SpielerTyp.CPU
-                                            Dim name As String = con.streamr.ReadLine
-                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = False}
+                                            Dim name As String = ReadString(con)
+                                            nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = True}
                                     End Select
                                 Next
-                                If con.streamr.ReadLine() <> "Okidoki!" Then Throw New NotImplementedException
+                                If ReadString(con) <> "Okidoki!" Then Throw New NotImplementedException
                                 games.Add(RNG.Next, nugaem)
                                 con.streamw.WriteLine("LET'S HAVE A BLAST!")
-                                EnterGameBlastMode(con, nugaem)
+                                EnterCreateMode(con, nugaem)
                             Catch ex As Exception
                                 con.streamw.WriteLine("Sorry m8!")
                             End Try
                         Case "membercount"
                             con.streamw.WriteLine(list.Count)
+                        Case Else
+                            Console.WriteLine("sos")
                     End Select
                 Loop
-            Catch ' die aktuelle überwachte verbindung hat sich wohl verabschiedet.
+
+                If con.stream.CanWrite Then
+                    con.streamw.WriteLine("Bye!")
+                    con.stream.Close()
+                End If
+                Catch ' die aktuelle überwachte verbindung hat sich wohl verabschiedet.
             End Try
 
-            If con.stream.CanWrite Then
-                con.streamw.WriteLine("Bye!")
-                con.stream.Close()
-            End If
             list.Remove(con)
+
         End Sub
 
-        Private Sub EnterGameBlastMode(con As Connection, gaem As Game)
+        Private Function ReadString(con As Connection) As String
+            Dim tmp As String = con.streamr.ReadLine
+            Console.WriteLine(tmp)
+            If tmp = "I'm outta here!" Then Throw New SocketException("Client disconnected!")
+            Return tmp
+        End Function
+
+        Private Sub EnterJoinMode(con As Connection, gaem As Game, index As Integer)
             'Warte auf alle Spieler
             Do
-                For i As Integer = 0 To 3
+                gaem.HostConnection.streamw.WriteLine(index.ToString & con.streamr.ReadLine)
+            Loop
+        End Sub
 
+        Private Sub EnterCreateMode(con As Connection, gaem As Game)
+            'Warte auf alle Spieler
+            Do
+                Dim nl As String = con.streamr.ReadLine
+                For i As Integer = 1 To 3
+                    With gaem.Players(i)
+                        If .Typ = SpielerTyp.Online AndAlso .Connection IsNot Nothing Then .Connection.streamw.WriteLine(nl)
+                    End With
                 Next
             Loop
         End Sub

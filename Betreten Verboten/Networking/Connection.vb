@@ -3,6 +3,8 @@ Imports System.Net.Sockets
 
 Namespace Networking
     Public Class Connection
+
+        Public Property client As TcpClient
         Public Property stream As NetworkStream
         Public Property streamw As StreamWriter
         Public Property streamr As StreamReader
