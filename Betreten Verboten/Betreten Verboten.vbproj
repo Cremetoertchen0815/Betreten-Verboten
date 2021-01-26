@@ -34,7 +34,8 @@
     <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>Icon.ico</ApplicationIcon>
+    <ApplicationIcon>
+    </ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <OptionExplicit>On</OptionExplicit>
@@ -49,6 +50,8 @@
     <OptionInfer>On</OptionInfer>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Framwork\Graphics\CamKeyframe.vb" />
+    <Compile Include="Renderer3D.vb" />
     <Compile Include="Enums.vb" />
     <Compile Include="Framwork\Graphics\Particles\Emitter.vb" />
     <Compile Include="Framwork\Graphics\Particles\Emitters\RainEmitter.vb" />
@@ -134,7 +137,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="3D Playing piece rendering.txt" />
     <Content Include="Icon.ico" />
     <Content Include="ToDo.txt" />
   </ItemGroup>

@@ -88,12 +88,9 @@ Public Class GameInstance
         'Generiere Test-Spiel
         AktuellesSpiel = New GameRoom
         AktuellesSpiel.LoadContent()
-        AktuellesSpiel.Init()
-
         'Generiere Test-Spiel
         AktuellerSlave = New SlaveWindow
         AktuellerSlave.LoadContent()
-        AktuellerSlave.Init()
 
 
         'Generate temporary main rendertarget for bloom effect
@@ -146,7 +143,7 @@ Public Class GameInstance
         Else
             'Implementiere Start-Puffer
             If Timer >= 0 Then Timer += gameTime.ElapsedGameTime.TotalMilliseconds
-            If Timer > 2000 Then
+            If Timer > 1000 Then
                 Timer = -1
                 Blinker = New Transition(Of Single)(New TransitionTypes.TransitionType_Linear(800), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse}
                 Automator.Add(Blinker)
@@ -244,6 +241,8 @@ Public Class GameInstance
 
     Private Sub StartNewRound(servername As String)
         LocalClient.AutomaticRefresh = False
+
+        AktuellesSpiel.Init()
         AktuellesSpiel.NetworkMode = False
         AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
         For i As Integer = 1 To 3
@@ -270,6 +269,8 @@ Public Class GameInstance
     End Sub
 
     Protected Overrides Sub Draw(ByVal gameTime As GameTime)
+
+        If InGame Then If InSlave Then AktuellerSlave.PreDraw() Else AktuellesSpiel.PreDraw()
 
         'Setze das Render-Ziel zunächst auf das RenderTarget "TempTarget", um später PPFX(post processing effects) hinzuzufügen zu können
         GraphicsDevice.SetRenderTargets(TempTarget)
@@ -310,6 +311,7 @@ Public Class GameInstance
                         SpriteBatch.DrawString(MediumFont, "Back", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("Back").X / 2, 925), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("Start Round").X / 2, 925), FgColor)
                     Case 2
+                        SelectedOnlineGaemIndex = Math.Min(Math.Max(SelectedOnlineGaemIndex, 0), OnlineGameInstances.Length - 1)
                         Dim currentgaem As String = If(SelectedOnlineGaemIndex > -1, OnlineGameInstances(SelectedOnlineGaemIndex).Name & "(" & OnlineGameInstances(SelectedOnlineGaemIndex).Players.ToString & "/4)", "[No open rounds]")
                         DrawLine(New Vector2(GameSize.X / 2, 200), New Vector2(GameSize.X / 2, 300), FgColor)
                         SpriteBatch.DrawString(MediumFont, "←", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("←").X / 2, 225), FgColor)
@@ -393,6 +395,7 @@ Public Class GameInstance
 
 
             LocalClient.AutomaticRefresh = False
+            AktuellerSlave.Init()
             AktuellerSlave.UserIndex = index
             AktuellerSlave.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
             For i As Integer = 0 To 3

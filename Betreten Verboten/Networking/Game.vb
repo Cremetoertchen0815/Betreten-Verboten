@@ -1,8 +1,9 @@
 ﻿Namespace Networking
     Public Class Game
+        Public Property Key As Integer
         Public Property Name As String
         Public Property Players As Player() = {Nothing, Nothing, Nothing, Nothing}
-        'Public Property LocalUserPlayerID As Integer
+        Public Property Ended As Boolean = False
         Public Property HostConnection As Connection
         Public Function GetPlayerCount() As Integer
             Dim cnt As Integer = 0

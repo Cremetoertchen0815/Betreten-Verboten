@@ -7,6 +7,8 @@ Namespace Networking
     Public Class Client
         Public Property Connected As Boolean = False
         Public Property Hostname As String
+        Public Property IsHost As Boolean
+        Public Property LeaveFlag As Boolean = False
 
         Public Property AutomaticRefresh As Boolean
             Get
@@ -35,11 +37,11 @@ Namespace Networking
                     stream = client.GetStream
                     streamw = New StreamWriter(stream) With {.AutoFlush = True}
                     streamr = New StreamReader(stream)
-                    If Not streamr.ReadLine() = "Hello there!" Then Throw New NotImplementedException()
-                    streamw.WriteLine("Wassup?")
-                    If Not streamr.ReadLine() = "What's your name?" Then Throw New NotImplementedException()
-                    streamw.WriteLine(nickname)
-                    If Not streamr.ReadLine() = "Alrighty!" Then
+                    If Not ReadString() = "Hello there!" Then Throw New NotImplementedException()
+                    WriteString("Wassup?")
+                    If Not ReadString() = "What's your name?" Then Throw New NotImplementedException()
+                    WriteString(nickname)
+                    If Not ReadString() = "Alrighty!" Then
                         Microsoft.VisualBasic.MsgBox("Username already taken on this server! Please change username!")
                         Exit Sub
                     End If
@@ -68,7 +70,7 @@ Namespace Networking
 
         Public Sub Disconnect()
             If client.Connected Then
-                streamw.WriteLine("I'm outta here!")
+                WriteString("I'm outta here!")
                 streamw.Close()
                 streamr.Close()
                 stream.Close()
@@ -76,6 +78,26 @@ Namespace Networking
             End If
 
             Connected = False
+        End Sub
+
+        Private Function ReadString() As String
+            Try
+                Dim tmp As String = streamr.ReadLine
+                Console.WriteLine("[Client/I]" & tmp)
+                Return tmp
+            Catch ex As Exception
+                Disconnect()
+                Return ""
+            End Try
+        End Function
+
+        Private Sub WriteString(str As String)
+            Try
+                Console.WriteLine("[Client/O]" & str)
+                streamw.WriteLine(str)
+            Catch ex As Exception
+                Disconnect()
+            End Try
         End Sub
 
         Friend Function ReadStream() As String()
@@ -87,7 +109,8 @@ Namespace Networking
         End Function
 
         Friend Sub WriteStream(msg As String)
-            streamw.WriteLine(msg)
+            If msg(0) = "l"c And IsHost Then blastmode = False
+            If Connected Then WriteString(msg)
         End Sub
 
         Public Function GetGamesList() As OnlineGameInstance()
@@ -96,14 +119,13 @@ Namespace Networking
 
             Try
                 Dim lst As New List(Of OnlineGameInstance)
-                streamr.DiscardBufferedData()
-                streamw.WriteLine("list")
+                WriteString("list")
                 Do
-                    Dim firstline As String = streamr.ReadLine()
+                    Dim firstline As String = ReadString()
                     If firstline <> "That's it!" Then
                         Dim gaem As New OnlineGameInstance With {.Key = CInt(firstline),
-                                                                 .Name = streamr.ReadLine(),
-                                                                 .Players = CInt(streamr.ReadLine())}
+                                                                 .Name = ReadString(),
+                                                                 .Players = CInt(ReadString())}
                         lst.Add(gaem)
                     Else
                         Exit Do
@@ -121,8 +143,8 @@ Namespace Networking
             If blastmode Or Not Connected Then Return 0
 
             Try
-                streamw.WriteLine("membercount")
-                Return CInt(streamr.ReadLine)
+                WriteString("membercount")
+                Return CInt(ReadString())
             Catch ex As Exception
                 Disconnect()
                 Return 0
@@ -133,14 +155,14 @@ Namespace Networking
             'Kein Zugriff auf diese Daten wenn in Blastmodus oder Verbindung getrennt
             If blastmode Or Not Connected Then Return False
 
-            streamw.WriteLine("join")
-            streamw.WriteLine(id)
-            index = CInt(streamr.ReadLine())
+            WriteString("join")
+            WriteString(id)
+            index = CInt(ReadString())
             For i As Integer = 0 To 3
-                names(i) = streamr.ReadLine
+                names(i) = ReadString()
             Next
-            streamw.WriteLine("Okidoki!")
-            If streamr.ReadLine <> "LET'S HAVE A BLAST!" Then Return False
+            WriteString("Okidoki!")
+            If ReadString() <> "LET'S HAVE A BLAST!" Then Return False
             blastmode = True
             data.Clear()
             listener = New Thread(AddressOf MainClientListenerSub)
@@ -152,17 +174,15 @@ Namespace Networking
             'Kein Zugriff auf diese Daten wenn in Blastmodus oder Verbindung getrennt
             If blastmode Or Not Connected Then Return False
 
-            streamw.WriteLine("create")
-            streamw.WriteLine(name)
+            WriteString("create")
+            WriteString(name)
             For i As Integer = 0 To 3
-                streamw.WriteLine(CInt(types(i).Typ).ToString)
-                If types(i).Typ <> SpielerTyp.Online Then streamw.WriteLine(types(i).Name)
+                WriteString(CInt(types(i).Typ).ToString)
+                If types(i).Typ <> SpielerTyp.Online Then WriteString(types(i).Name)
             Next
-            streamw.WriteLine("Okidoki!")
-            Dim rdl As String = streamr.ReadLine
-            If rdl <> "LET'S HAVE A BLAST!" Then
-                Return False
-            End If
+            WriteString("Okidoki!")
+            Dim rdl As String = ReadString()
+            If rdl <> "LET'S HAVE A BLAST!" Then Return False
             blastmode = True
             data.Clear()
             listener = New Thread(AddressOf MainClientListenerSub)
@@ -172,13 +192,18 @@ Namespace Networking
 
         Private Sub MainClientListenerSub()
             Try
-                While blastmode
-                    Dim tmp As String = streamr.ReadLine
-                    data.Add(tmp)
-                End While
-            Catch
-                Disconnect()
+                While blastmode And Not LeaveFlag
+                    Dim tmp As String = ReadString()
+                    If tmp.StartsWith("Sorry m8!") Then Throw New Exception() Else data.Add(tmp)
+                    If tmp = "Understandable, have a nice day!" Then LeaveFlag = True : Exit While
+                    End While
+                    Catch ex As Exception
+                    Disconnect()
             End Try
+            blastmode = False
+            AutomaticRefresh = True
+            WriteString("Ich putz hier mal durch.")
+            WriteString("Damit keine ReadLine-Commands offen bleiben.")
         End Sub
 
     End Class

@@ -28,12 +28,13 @@ Public Class GameRoom
     Private DreifachWürfeln As Boolean 'Gibt an(am Anfang des Spiels), dass ma drei Versuche hat um eine 6 zu bekommen
     Private lastmstate As MouseState
     Private lastkstate As KeyboardState
+    Private ServerClosedManually As Boolean = False
 
     'Assets
+    Friend Renderer As Renderer3D
     Private WürfelAugen As Texture2D
     Private WürfelRahmen As Texture2D
     Private SpielfeldVerbindungen As Texture2D
-    Private Pfeil As Texture2D
     Private ButtonFont As SpriteFont
     Private ChatFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
@@ -65,34 +66,28 @@ Public Class GameRoom
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
     Private Const WürfelAnimationCooldown As Integer = 62
-    Private Const FigurSpeed As Integer = 200
+    Private Const FigurSpeed As Integer = 300
     Private Const ErrorCooldown As Integer = 1200
     Private Const RollDiceCooldown As Integer = 800
     Private Const CPUThinkingTime As Integer = 1500
-
-    'Private Const FDist As Integer = 85
-    'Private Const WürfelDauer As Integer = 1
-    'Private Const WürfelAnimationCooldown As Integer = 1
-    'Private Const FigurSpeed As Integer = 1
-    'Private Const ErrorCooldown As Integer = 1
-    'Private Const RollDiceCooldown As Integer = 1
-    'Private Const CPUThinkingTime As Integer = 1
 
     Friend Sub Init()
         'Bereite Flags und Variablen vor
         Status = SpielStatus.WarteAufOnlineSpieler
         WürfelTimer = 0
+        LocalClient.LeaveFlag = False
+        LocalClient.IsHost = True
         'DEBUG: Setze sinnvolle Werte in Variablen ein, da das Menu noch nicht funktioniert.
         Spielers = {New Player, New Player, New Player, New Player}
         Chat = New List(Of (String, Color))
+        Status = SpielStatus.WarteAufOnlineSpieler
+        SpielerIndex = -1
     End Sub
 
     Friend Sub LoadContent()
         'Lade Assets
         WürfelAugen = Content.Load(Of Texture2D)("würfel_augen")
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
-        SpielfeldVerbindungen = Content.Load(Of Texture2D)("playfield_connections")
-        Pfeil = Content.Load(Of Texture2D)("arrow_right")
         ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
         RNG = New Random()
@@ -109,57 +104,25 @@ Public Class GameRoom
         HUDNameBtn = New Controls.Button("", New Vector2(500, 20), New Vector2(950, 30)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Black, 0), .Color = Color.Yellow} : HUD.Controls.Add(HUDNameBtn)
         HUD.Init()
 
+        'Lade Renderer
+        Renderer = New Renderer3D
+        Renderer.LoadContent()
+
         'Lade Spielfeld
         Feld = New Rectangle(500, 70, 950, 950)
         Center = Feld.Center.ToVector2
         SelectFader = New Transition(Of Single)(New TransitionTypes.TransitionType_EaseInEaseOut(400), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(SelectFader)
     End Sub
 
+    Friend Sub PreDraw()
+        Renderer.PreDraw(Spielers, SpielerIndex, Status, SelectFader.Value)
+    End Sub
+
     Friend Sub Draw(ByVal gameTime As GameTime)
 
+        Renderer.Draw(gameTime)
+
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
-
-
-        'Draw fields
-        Dim fields As New List(Of Vector2)
-        For j = 0 To 3
-            'Zeichne Spielfeld
-            For i = 0 To 17
-                Dim loc As Vector2 = Center + Vector2.Transform(GetSpielfeldPositionen(i), transmatrices(j))
-                Select Case i
-                    Case PlayFieldPos.Haus1, PlayFieldPos.Haus2, PlayFieldPos.Haus3, PlayFieldPos.Haus4, PlayFieldPos.Home1, PlayFieldPos.Home2, PlayFieldPos.Home3, PlayFieldPos.Home4
-                        DrawCircle(loc, 20, 25, playcolor(j), 2)
-                    Case PlayFieldPos.Feld1
-                        DrawCircle(loc, 28, 30, playcolor(j), 3)
-                        fields.Add(loc)
-                        DrawArrow(loc, playcolor(j), j)
-                    Case Else
-                        DrawCircle(loc, 28, 30, Color.White, 3)
-                        fields.Add(loc)
-                End Select
-            Next
-        Next
-
-        SpriteBatch.Draw(SpielfeldVerbindungen, Feld, Color.White)
-
-        'Zeichne Spielfiguren
-        For j = 0 To 3
-            Dim pl As Player = Spielers(j)
-            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex And pl.Typ = SpielerTyp.Local, SelectFader.Value, 1.0F)
-            For k As Integer = 0 To 3
-                Dim chr As Integer = pl.Spielfiguren(k)
-                Select Case chr
-                    Case -1 'Zeichne Figur in Homebase
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(k), transmatrices(j)), playcolor(j))
-                    Case 40, 41, 42, 43 'Zeichne Figur in Haus
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(j)), color)
-                    Case Else 'Zeichne Figur auf Feld
-                        Dim matrx As Matrix = transmatrices((j + Math.Floor(chr / 10)) Mod 4)
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx), color)
-                End Select
-            Next
-        Next
-
 
         'Zeichne Haupt-Würfel
         If ShowDice Then
@@ -185,10 +148,6 @@ Public Class GameRoom
 
     Private Sub DrawChr(vc As Vector2, color As Color)
         FillRectangle(New Rectangle(vc.X - 10, vc.Y - 10, 20, 20), color)
-    End Sub
-
-    Private Sub DrawArrow(vc As Vector2, color As Color, iteration As Integer)
-        SpriteBatch.Draw(Pfeil, New Rectangle(vc.X, vc.Y, 35, 35), Nothing, color, MathHelper.PiOver2 * (iteration + 3), New Vector2(35, 35) / 2, SpriteEffects.None, 0)
     End Sub
 
     Private Function GetChrRect(vc As Vector2) As Rectangle
@@ -234,7 +193,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -383,13 +342,22 @@ Public Class GameRoom
             HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (Spielers(SpielerIndex).Typ = SpielerTyp.Local)
         End If
 
-        'Misc things
+        'Network stuff
+        If NetworkMode Then
+            If Not LocalClient.Connected And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Connection lost!") : GameClassInstance.SwitchToSubmenu(0)
+            If LocalClient.LeaveFlag And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Player left! Game was ended!") : GameClassInstance.SwitchToSubmenu(0)
+            'If  Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Internal error!") : GameClassInstance.SwitchToSubmenu(0)
+        End If
+
         If NetworkMode Then ReadAndProcessInputData()
+
+        'Misc things
         If kstate.IsKeyDown(Keys.Escape) And lastkstate.IsKeyUp(Keys.Escape) Then MenuButton()
         HUD.Update(gameTime, mstate, Matrix.Identity)
+        Renderer.Update(gameTime)
         lastmstate = mstate
         lastkstate = kstate
-    End Sub
+        End Sub
 
 #Region "Netzwerkfunktionen"
     Private Sub ReadAndProcessInputData()
@@ -412,10 +380,12 @@ Public Class GameRoom
                     Dim figur As Integer = CInt(element(3).ToString)
                     Spielers(playr).Spielfiguren(figur) = -1
                     SendKickFigure(playr, figur, source)
-                    Status = SpielStatus.Waitn
                     FigurFader = Nothing
+                    SwitchPlayer()
                 Case "n"c
                     SwitchPlayer()
+                'Case "l"c
+                '    SendGameClosed()
                 Case "s"c
                     Dim figur As Integer = CInt(element(2).ToString)
                     Dim destination As Integer = CInt(element.Substring(3).ToString)
@@ -424,7 +394,7 @@ Public Class GameRoom
                     Dim defaultmov As Integer = Math.Max(Spielers(source).Spielfiguren(figur), 0)
                     Status = SpielStatus.FahreFelder
                     FigurFaderZiel = (source, figur)
-                    FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear((destination - defaultmov) * FigurSpeed), defaultmov, destination, Sub() Status = SpielStatus.Waitn)
+                    FigurFader = New Transition(Of Integer)(New TransitionTypes.TransitionType_Linear((destination - defaultmov) * FigurSpeed), defaultmov, destination, Sub() SwitchPlayer())
                     Automator.Add(FigurFader)
             End Select
         Next
@@ -451,6 +421,11 @@ Public Class GameRoom
 
     Private Sub SendFigureTransition(who As Integer, figur As Integer, destination As Integer)
         SendNetworkMessageToAll("s" & who.ToString & figur.ToString & destination.ToString)
+    End Sub
+
+    Private Sub SendGameClosed()
+        SendNetworkMessageToAll("l")
+        ServerClosedManually = True
     End Sub
 
     Private Sub SendWinFlag(who As Integer)
@@ -635,7 +610,7 @@ Public Class GameRoom
         End Select
     End Function
 
-    Private Function GetSpielfeldPositionen(ps As PlayFieldPos) As Vector2
+    Friend Shared Function GetSpielfeldPositionen(ps As PlayFieldPos) As Vector2
         Select Case ps
             Case PlayFieldPos.Home1
                 Return New Vector2(-420, -420)
@@ -703,6 +678,8 @@ Public Class GameRoom
 
 #Region "Knopfgedrücke"
     Private Sub ExitButton() Handles HUDBtnA.Clicked
+        SendGameClosed()
+        NetworkMode = False
         GameClassInstance.InGame = False
     End Sub
 
@@ -719,6 +696,8 @@ Public Class GameRoom
         End If
     End Sub
     Private Sub MenuButton() Handles HUDBtnB.Clicked
+        SendGameClosed()
+        NetworkMode = False
         GameClassInstance.SwitchToSubmenu(0)
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked

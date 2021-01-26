@@ -15,6 +15,7 @@ Public Class SlaveWindow
     'Spiele-Flags und Variables
     Friend Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
     Private SpielerIndex As Integer = -1 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
+    Private NetworkMode As Boolean = True
     Friend UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
     Private Status As SpielStatus 'Speichert den aktuellen Status des Spiels
     Private WürfelAktuelleZahl As Integer 'Speichert den WErt des momentanen Würfels
@@ -27,8 +28,10 @@ Public Class SlaveWindow
     Private DreifachWürfeln As Boolean 'Gibt an(am Anfang des Spiels), dass ma drei Versuche hat um eine 6 zu bekommen
     Private lastmstate As MouseState
     Private lastkstate As KeyboardState
+    Private ServerClosedManually As Boolean = False
 
     'Assets
+    Friend Renderer As Renderer3D
     Private WürfelAugen As Texture2D
     Private WürfelRahmen As Texture2D
     Private SpielfeldVerbindungen As Texture2D
@@ -73,8 +76,10 @@ Public Class SlaveWindow
         'Bereite Flags und Variablen vor
         Status = SpielStatus.WarteAufOnlineSpieler
         WürfelTimer = 0
-        'DEBUG: Setze sinnvolle Werte in Variablen ein, da das Menu noch nicht funktioniert.
-        Spielers = {New Player, New Player, New Player, New Player}
+        LocalClient.LeaveFlag = False
+        NetworkMode = True
+        SpielerIndex = -1
+        LocalClient.IsHost = False
         Chat = New List(Of (String, Color))
     End Sub
 
@@ -100,60 +105,27 @@ Public Class SlaveWindow
         HUDNameBtn = New Controls.Button("", New Vector2(500, 20), New Vector2(950, 30)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Black, 0), .Color = Color.Yellow} : HUD.Controls.Add(HUDNameBtn)
         HUD.Init()
 
+        'Lade Renderer
+        Renderer = New Renderer3D
+        Renderer.LoadContent()
+
         'Lade Spielfeld
-        Feld = New Rectangle(500, 70, 950, 950)
-        Center = Feld.Center.ToVector2
         SelectFader = New Transition(Of Single)(New TransitionTypes.TransitionType_EaseInEaseOut(400), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(SelectFader)
+    End Sub
+
+    Friend Sub PreDraw()
+        Renderer.PreDraw(Spielers, SpielerIndex, Status, SelectFader.Value)
     End Sub
 
     Friend Sub Draw(ByVal gameTime As GameTime)
 
+        Renderer.Draw(gameTime)
+
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
 
 
-        'Draw fields
-        Dim fields As New List(Of Vector2)
-        For j = 0 To 3
-            'Zeichne Spielfeld
-            For i = 0 To 17
-                Dim loc As Vector2 = Center + Vector2.Transform(GetSpielfeldPositionen(i), transmatrices(j))
-                Select Case i
-                    Case PlayFieldPos.Haus1, PlayFieldPos.Haus2, PlayFieldPos.Haus3, PlayFieldPos.Haus4, PlayFieldPos.Home1, PlayFieldPos.Home2, PlayFieldPos.Home3, PlayFieldPos.Home4
-                        DrawCircle(loc, 20, 25, playcolor(j), 2)
-                    Case PlayFieldPos.Feld1
-                        DrawCircle(loc, 28, 30, playcolor(j), 3)
-                        fields.Add(loc)
-                        DrawArrow(loc, playcolor(j), j)
-                    Case Else
-                        DrawCircle(loc, 28, 30, Color.White, 3)
-                        fields.Add(loc)
-                End Select
-            Next
-        Next
-
-        SpriteBatch.Draw(SpielfeldVerbindungen, Feld, Color.White)
-
-        'Zeichne Spielfiguren
-        For j = 0 To 3
-            Dim pl As Player = Spielers(j)
-            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex And SpielerIndex = UserIndex, SelectFader.Value, 1.0F)
-            For k As Integer = 0 To 3
-                Dim chr As Integer = pl.Spielfiguren(k)
-                Select Case chr
-                    Case -1 'Zeichne Figur in Homebase
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(k), transmatrices(j)), playcolor(j))
-                    Case 40, 41, 42, 43 'Zeichne Figur in Haus
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(j)), color)
-                    Case Else 'Zeichne Figur auf Feld
-                        Dim matrx As Matrix = transmatrices((j + Math.Floor(chr / 10)) Mod 4)
-                        DrawChr(Center + Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx), color)
-                End Select
-            Next
-        Next
-
-
         'Zeichne Haupt-Würfel
-        If ShowDice Then
+        If ShowDice And SpielerIndex = UserIndex Then
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelAktuelleZahl), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
@@ -291,10 +263,19 @@ Public Class SlaveWindow
             HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (SpielerIndex = UserIndex)
         End If
 
-        'Misc things
-        ReadAndProcessInputData()
+        'Network stuff
+        If NetworkMode Then
+            If Not LocalClient.Connected And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Connection lost!") : GameClassInstance.SwitchToSubmenu(0)
+            If LocalClient.LeaveFlag And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Player left! Game was ended!") : GameClassInstance.SwitchToSubmenu(0)
+            'If  Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Internal error!") : GameClassInstance.SwitchToSubmenu(0)
+        End If
+
+        If NetworkMode Then ReadAndProcessInputData()
+
+        'Misc stuff
         If kstate.IsKeyDown(Keys.Escape) And lastkstate.IsKeyUp(Keys.Escape) Then MenuButton()
         HUD.Update(gameTime, mstate, Matrix.Identity)
+        Renderer.Update(gameTime)
         lastmstate = mstate
         lastkstate = kstate
     End Sub
@@ -365,16 +346,21 @@ Public Class SlaveWindow
     Private Sub SendChatMessage(text As String)
         LocalClient.WriteStream("c" & text)
     End Sub
+    Private Sub SendGameClosed()
+        LocalClient.WriteStream("l")
+    End Sub
     Private Sub SendKickFigure(who As Integer, figur As Integer)
         LocalClient.WriteStream("k" & who.ToString & figur.ToString)
     End Sub
 
     Private Sub SubmitResults(figur As Integer, destination As Integer)
-        If destination < -1 Then
-            LocalClient.WriteStream("n")
-        Else
-            LocalClient.WriteStream("s" & figur & destination)
-        End If
+        Automator.Add(New TimerTransition(500, Sub()
+                                                   If destination < -1 Then
+                                                       LocalClient.WriteStream("n")
+                                                   Else
+                                                       LocalClient.WriteStream("s" & figur & destination)
+                                                   End If
+                                               End Sub))
     End Sub
 #End Region
 
@@ -596,7 +582,9 @@ Public Class SlaveWindow
 
 #Region "Knopfgedrücke"
     Private Sub ExitButton() Handles HUDBtnA.Clicked
-        GameClassInstance.InGame = False
+        SendGameClosed()
+        NetworkMode = False
+        GameClassInstance.Exit()
     End Sub
 
     Dim chatbtnpressed As Boolean = False
@@ -611,6 +599,8 @@ Public Class SlaveWindow
         End If
     End Sub
     Private Sub MenuButton() Handles HUDBtnB.Clicked
+        SendGameClosed()
+        NetworkMode = False
         GameClassInstance.SwitchToSubmenu(0)
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked
