@@ -51,6 +51,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Framwork\Graphics\CamKeyframe.vb" />
+    <Compile Include="Framwork\Tweening\ManagedTypes\ManagedType_CamKeyframe.vb" />
+    <Compile Include="Framwork\Tweening\TransitionTypes\TransitionType_Parabole.vb" />
+    <Compile Include="IGameWindow.vb" />
     <Compile Include="Renderer3D.vb" />
     <Compile Include="Enums.vb" />
     <Compile Include="Framwork\Graphics\Particles\Emitter.vb" />

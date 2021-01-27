@@ -1,7 +1,8 @@
 ﻿-Implementiere Spiele-Mechaniken(bis 21.01.21) Check!
 -Implementiere CPU				(bis 21.01.21) Check!(nur Easy-Mode, mögl. wenn noch genug Zeit ist Medium und Hard-Mode???)!
 -Implementiere Menu				(bis 23.01.21) Check!
--Implementiere Networking		(bis 25.01.21)
--Implementiere 3D-Movement		(bis 28.01.21)
+-Implementiere Networking		(bis 25.01.21) Check!
+-Implementiere 3D-Movement		(bis 28.01.21) Check!
+-Implementiere Camera Movement  (bis 28.01.21)
 -Implementiere SFX + BGM    	(bis 29.01.21)
 -Testen							(bis 29.01.21)

@@ -20,10 +20,14 @@ Public Class Renderer3D
     Private Camera As CamKeyframe
     Private CamMatrix As Matrix
 
+    Private Game As IGameWindow
     Private Feld As Rectangle
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
     Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange}
+    Sub New(game As IGameWindow)
+        Me.Game = game
+    End Sub
 
     Friend Sub LoadContent()
         figur_model = STLDefinition.LoadSTL(New StreamReader("Content\mesh\Playing_Piece.stl").BaseStream)
@@ -154,7 +158,7 @@ Public Class Renderer3D
         BoxIndexBuffer.SetData(genboxind)
     End Sub
 
-    Friend Sub PreDraw(Spielers As Player(), SpielerIndex As Integer, Status As SpielStatus, BlinkerValue As Single)
+    Friend Sub PreDraw()
         Dev.SetRenderTarget(SpielfeldTextur)
         Dev.Clear(Color.Transparent)
 
@@ -187,8 +191,6 @@ Public Class Renderer3D
         Dev.DepthStencilState = DepthStencilState.Default
 
         EffectA.World = Matrix.Identity
-        'eff.View = Matrix.CreateLookAt(New Vector3(0, 0, -1), New Vector3(0, 0, 0), Vector3.Up)
-        'eff.Projection = Matrix.CreateScale(1, -1, 1) * Matrix.CreatePerspectiveOffCenter(0, 1920, 1080, 0, 1, 999)
         EffectA.View = View
         EffectA.Projection = Projection
         EffectA.TextureEnabled = True
@@ -210,23 +212,22 @@ Public Class Renderer3D
         EffectB.AmbientLightColor = Color.White.ToVector3 * 0.0
 
         For j = 0 To 3
-            Dim pl As Player = Spielers(j)
-            Dim color As Color = playcolor(j) * If(Status = SpielStatus.WähleFigur And j = SpielerIndex And pl.Typ = SpielerTyp.Local, BlinkerValue, 1.0F)
+            Dim pl As Player = Game.Spielers(j)
+            Dim color As Color = playcolor(j) * If(Game.Status = SpielStatus.WähleFigur And j = Game.UserIndex And (pl.Typ = SpielerTyp.Local Or pl.Typ = SpielerTyp.Online), Game.SelectFader.Value, 1.0F)
             For k As Integer = 0 To 3
-                Dim chr As Integer = pl.Spielfiguren(k)
-                Select Case chr
-                    Case -1 'Zeichne Figur in Homebase
-                        DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(k), transmatrices(j)), playcolor(j))
-                    Case 40, 41, 42, 43 'Zeichne Figur in Haus
-                        DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(chr - 26), transmatrices(j)), color)
-                    Case Else 'Zeichne Figur auf Feld
-                        Dim matrx As Matrix = transmatrices((j + Math.Floor(chr / 10)) Mod 4)
-                        DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen((chr Mod 10) + 4), matrx), color)
-                End Select
+                Dim scale As Single = If(Game.FigurFaderScales.ContainsKey((j, k)), Game.FigurFaderScales((j, k)).Value, 1)
+
+                If Game.Status = SpielStatus.FahreFelder And Game.FigurFaderZiel.Item1 = j And Game.FigurFaderZiel.Item2 = k Then
+                    DrawChr(Game.FigurFaderXY.Value, color, Game.FigurFaderZ.Value)
+                ElseIf pl.Spielfiguren(k) = -1 Then 'Zeichne Figur in Homebase
+                    DrawChr(Game.GetSpielfeldVector(j, k), playcolor(j), 0, scale)
+                Else 'Zeichne Figur in Haus
+                    DrawChr(Game.GetSpielfeldVector(j, k), color, 0, scale)
+                End If
             Next
         Next
-        Camera = New CamKeyframe(0, 0, 0, 0, 0, 0)
 
+        'Camera = New CamKeyframe(0, -150, -150, Math.PI / 2, Math.PI / 2, 0)
     End Sub
 
     Friend Sub Draw(gameTime As GameTime)
@@ -235,8 +236,8 @@ Public Class Renderer3D
         SpriteBatch.End()
     End Sub
 
-    Private Sub DrawChr(pos As Vector2, color As Color)
-        EffectB.World = figur_model.STLHeader.CenterMatrix * Matrix.CreateScale(3.5 * New Vector3(1, 1, -1)) * Matrix.CreateRotationY(Math.PI) * Matrix.CreateTranslation(-pos.X, -pos.Y, 42)
+    Private Sub DrawChr(pos As Vector2, color As Color, Optional zpos As Integer = 0, Optional scale As Single = 1)
+        EffectB.World = figur_model.STLHeader.CenterMatrix * Matrix.CreateTranslation(0, 0, 12) * Matrix.CreateScale(3.5 * scale * New Vector3(1, 1, -1)) * Matrix.CreateRotationY(Math.PI) * Matrix.CreateTranslation(-pos.X, -pos.Y, -zpos)
         EffectB.EmissiveColor = color.ToVector3 * 0.15
         EffectB.DirectionalLight0.DiffuseColor = color.ToVector3 * 0.5 '// a gray light
         For Each pass As EffectPass In EffectB.CurrentTechnique.Passes
@@ -247,12 +248,9 @@ Public Class Renderer3D
     End Sub
 
     Friend Sub Update(gameTime As GameTime)
-
-        'View = Matrix.CreateScale(1, 1, 1 / 1080) * Matrix.CreateLookAt(New Vector3(0.05, 0, 2), New Vector3(0, 0, 0), Vector3.UnitZ)
-        'Projection = Matrix.CreateScale(100) * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
         CamMatrix = Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll) * Matrix.CreateTranslation(Camera.Location)
         View = CamMatrix * Matrix.CreateScale(1, 1, 1 / 1080) * Matrix.CreateLookAt(New Vector3(0, 0, -1), New Vector3(0, 0, 0), Vector3.Up)
-        Projection = Matrix.CreateScale(100) * Matrix.CreateTranslation(New Vector3(-GameSize.X / 2, -GameSize.Y / 2, 0)) * ScaleMatrix * Matrix.CreateTranslation(New Vector3(GameSize.X / 2, GameSize.Y / 2, 0)) * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
+        Projection = Matrix.CreateScale(100) * Matrix.CreateTranslation(New Vector3(-GameSize.X / 2, -GameSize.Y / 2, 0)) * ScaleMatrix * Matrix.CreateTranslation(New Vector3(GameSize.X / 2 + 1500, GameSize.Y / 2 - 500, 0)) * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
     End Sub
 
     Private Sub DrawArrow(vc As Vector2, color As Color, iteration As Integer)

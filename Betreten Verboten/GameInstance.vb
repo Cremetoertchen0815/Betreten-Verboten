@@ -85,13 +85,6 @@ Public Class GameInstance
         Program.ReferencePixel.SetData(Of Color)({Color.White})
         Program.Dev = GraphicsDevice
 
-        'Generiere Test-Spiel
-        AktuellesSpiel = New GameRoom
-        AktuellesSpiel.LoadContent()
-        'Generiere Test-Spiel
-        AktuellerSlave = New SlaveWindow
-        AktuellerSlave.LoadContent()
-
 
         'Generate temporary main rendertarget for bloom effect
         TempTarget = New RenderTarget2D(
@@ -240,8 +233,11 @@ Public Class GameInstance
     End Sub
 
     Private Sub StartNewRound(servername As String)
-        LocalClient.AutomaticRefresh = False
+        Dim Internetz As Boolean = IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online)
+        If Internetz Then LocalClient.AutomaticRefresh = False
 
+        AktuellesSpiel = New GameRoom
+        AktuellesSpiel.LoadContent()
         AktuellesSpiel.Init()
         AktuellesSpiel.NetworkMode = False
         AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
@@ -256,7 +252,7 @@ Public Class GameInstance
             End Select
         Next
         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
-                                                                                                                                        If IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online) Then
+                                                                                                                                        If Internetz Then
                                                                                                                                             If Not LocalClient.CreateGame(servername, AktuellesSpiel.Spielers) Then Microsoft.VisualBasic.MsgBox("Somethings wrong, mate!") Else AktuellesSpiel.NetworkMode = True
                                                                                                                                         End If
                                                                                                                                         InGame = True
@@ -395,6 +391,8 @@ Public Class GameInstance
 
 
             LocalClient.AutomaticRefresh = False
+            AktuellerSlave = New SlaveWindow
+            AktuellerSlave.LoadContent()
             AktuellerSlave.Init()
             AktuellerSlave.UserIndex = index
             AktuellerSlave.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}

@@ -18,6 +18,7 @@ Namespace Framework.Tweening
             registerType(New ManagedType_Vector2())
             registerType(New ManagedType_Vector3())
             registerType(New ManagedType_Vector4())
+            registerType(New ManagedType_CamKeyframe())
 
             m_Transitions = New List(Of ITransition)
         End Sub
