@@ -213,7 +213,7 @@ Public Class Renderer3D
 
         For j = 0 To 3
             Dim pl As Player = Game.Spielers(j)
-            Dim color As Color = playcolor(j) * If(Game.Status = SpielStatus.WähleFigur And j = Game.UserIndex And (pl.Typ = SpielerTyp.Local Or pl.Typ = SpielerTyp.Online), Game.SelectFader.Value, 1.0F)
+            Dim color As Color = playcolor(j) * If(Game.Status = SpielStatus.WähleFigur And j = Game.SpielerIndex And (pl.Typ = SpielerTyp.Local Or pl.Typ = SpielerTyp.Online), Game.SelectFader.Value, 1.0F)
             For k As Integer = 0 To 3
                 Dim scale As Single = If(Game.FigurFaderScales.ContainsKey((j, k)), Game.FigurFaderScales((j, k)).Value, 1)
 

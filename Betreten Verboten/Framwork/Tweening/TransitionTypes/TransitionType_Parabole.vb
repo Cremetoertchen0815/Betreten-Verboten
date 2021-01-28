@@ -19,7 +19,7 @@ Namespace Framework.Tweening.TransitionTypes
             Dim xpos = (iTime / m_dTransitionTime)
             dPercentage = -4 * (xpos - 0.5) ^ 2 + 1
 
-            If dPercentage >= 1.0 Then
+            If xpos >= 1.0 Then
                 dPercentage = 1.0
                 bCompleted = True
             Else

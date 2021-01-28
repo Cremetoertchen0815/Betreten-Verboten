@@ -67,7 +67,6 @@ Public Class GameRoom
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
     Friend FigurFaderCamera As New Transition(Of CamKeyframe)
-    Friend FigurFaderEndMethod As Action
     Friend CPUTimer As Integer
 
     Private Const FDist As Integer = 85
@@ -133,7 +132,7 @@ Public Class GameRoom
         SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.AnisotropicClamp, DepthStencilState.Default, RasterizerState.CullCounterClockwise, Nothing, ScaleMatrix)
 
         'Zeichne Haupt-Würfel
-        If ShowDice Then
+        If ShowDice And SpielerIndex = UserIndex Then
             SpriteBatch.Draw(WürfelAugen, New Rectangle(1570, 700, 300, 300), GetWürfelSourceRectangle(WürfelAktuelleZahl), HUDColor)
             SpriteBatch.Draw(WürfelRahmen, New Rectangle(1570, 700, 300, 300), Color.Lerp(HUDColor, Color.White, 0.4))
         End If
@@ -217,7 +216,6 @@ Public Class GameRoom
             FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
         Else
             SwitchPlayer()
-            If FigurFaderEndMethod IsNot Nothing Then FigurFaderEndMethod()
         End If
     End Sub
 
@@ -347,7 +345,6 @@ Public Class GameRoom
                                         Status = SpielStatus.FahreFelder
                                         FigurFaderZiel = (SpielerIndex, k)
                                         'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                                        FigurFaderEndMethod = Nothing
                                         StartMoverSub()
                                         SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
                                         StopUpdating = False
@@ -382,7 +379,6 @@ Public Class GameRoom
                                         Status = SpielStatus.FahreFelder
                                         FigurFaderZiel = (SpielerIndex, k)
                                         'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                                        FigurFaderEndMethod = AddressOf CheckKick
                                         StartMoverSub()
                                         SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
                                         StopUpdating = False
@@ -473,7 +469,6 @@ Public Class GameRoom
                     Dim defaultmov As Integer = Math.Max(Spielers(source).Spielfiguren(figur), 0)
                     Status = SpielStatus.FahreFelder
                     FigurFaderZiel = (source, figur)
-                    FigurFaderEndMethod = Nothing
                     StartMoverSub(destination)
             End Select
         Next
@@ -523,13 +518,10 @@ Public Class GameRoom
         If Is6InDiceList() And homebase > -1 And Not startfd Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
             'Bereite das Homebase-verlassen vor
             Fahrzahl = GetSecondDiceAfterSix(SpielerIndex)
-            Status = SpielStatus.FahreFelder
             HUDInstructions.Text = "Move Character out of your homebase and move him " & Fahrzahl & " spaces!"
-            'Hole Figur aus Homebase und prüfe ob Spieler gekickt wird
             FigurFaderZiel = (SpielerIndex, homebase)
             'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
             If Not IsFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl) Then
-                FigurFaderEndMethod = AddressOf CheckKick
                 StartMoverSub()
                 SendFigureTransition(SpielerIndex, homebase, Fahrzahl)
             Else
@@ -543,19 +535,32 @@ Public Class GameRoom
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then 'Gibt an, dass das Start-Feld von einer eigenen Figur belegt ist(welche nicht gekickt werden kann) und dass selbst beim Wurf einer 6 keine weitere Figur die Homebase verlassen kann
             HUDInstructions.Text = "Start field blocked! Move pieces out of the way first!"
             Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
-            Status = SpielStatus.WähleFigur
-            StopUpdating = True
-            Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
+
+            If IsFutureFieldCoveredByOwnFigure(SpielerIndex, 0, -1) AndAlso Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl, -1) Then 'Spieler auf dem Start-Feld muss wenn mögl.  bewegt werden
+                homebase = GetFieldID(SpielerIndex, 0).Item2
+                FigurFaderZiel = (SpielerIndex, homebase)
+                StartMoverSub()
+                SendFigureTransition(SpielerIndex, homebase, Fahrzahl)
+            ElseIf IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl, -1) AndAlso Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl * 2, -1) Then 'Wenn Spieler auf dem Start-Feld nicht kann, fahre stattdessen mit nächtem blockierenden Spieler
+                homebase = GetFieldID(SpielerIndex, WürfelWerte(1)).Item2
+                FigurFaderZiel = (SpielerIndex, homebase)
+                StartMoverSub()
+                SendFigureTransition(SpielerIndex, homebase, Fahrzahl)
+            Else 'We can't so s$*!, also schieben wir unsere Probleme einfach auf den nächst besten Deppen, der gleich dran ist
+                Status = SpielStatus.WähleFigur
+                StopUpdating = True
+                Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
+            End If
         ElseIf (GetHomebaseCount(SpielerIndex) = 4 And Not Is6InDiceList()) OrElse Not CanDoAMove() Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde(oder generell kein Zug mehr möglich ist), ist kein Zug möglich und der nächste Spieler ist an der Reihe
-            StopUpdating = True
-            HUDInstructions.Text = "No move possible!"
-            Automator.Add(New TimerTransition(1000, Sub()
-                                                        SwitchPlayer()
-                                                        StopUpdating = False
-                                                    End Sub))
-        Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
-            'TODO: Add code for handling normal dice rolls and movement, as well as kicking
-            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
+                StopUpdating = True
+                HUDInstructions.Text = "No move possible!"
+                Automator.Add(New TimerTransition(1000, Sub()
+                                                            SwitchPlayer()
+                                                            StopUpdating = False
+                                                        End Sub))
+            Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
+                'TODO: Add code for handling normal dice rolls and movement, as well as kicking
+                Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
         End If

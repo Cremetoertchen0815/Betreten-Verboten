@@ -66,7 +66,7 @@ Public Class SlaveWindow
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
     Friend FigurFaderCamera As New Transition(Of CamKeyframe)
-    Friend FigurFaderEndMethod As Action
+    'Friend FigurFaderEndMethod As Action
 
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
@@ -176,8 +176,6 @@ Public Class SlaveWindow
             End If
             FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_Linear(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
             FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
-        Else
-            If FigurFaderEndMethod IsNot Nothing Then FigurFaderEndMethod()
         End If
     End Sub
 
@@ -383,7 +381,6 @@ Public Class SlaveWindow
                     FigurFaderZiel = (playr, figur)
                     'Animiere wie die Figur sich nach vorne bewegt, anschließend kehre zurück zum nichts tun
                     Dim defaultmov As Integer = Math.Max(Spielers(playr).Spielfiguren(figur), 0)
-                    FigurFaderEndMethod = Nothing
                     StartMoverSub(destination)
                 Case "w"c 'Spieler hat gewonnen
                     Dim playr As Integer = CInt(element(1).ToString)
@@ -428,9 +425,7 @@ Public Class SlaveWindow
             'Bereite das Homebase-verlassen vor
             Fahrzahl = GetSecondDiceAfterSix(SpielerIndex)
             HUDInstructions.Text = "Move Character out of your homebase and move him " & Fahrzahl & " spaces!"
-            'Hole Figur aus Homebase und prüfe ob Spieler gekickt wird
-            Spielers(SpielerIndex).Spielfiguren(homebase) = 0
-            CheckKick(homebase)
+            FigurFaderZiel = (SpielerIndex, homebase)
             'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
             If Not IsFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl) Then
                 SubmitResults(homebase, Fahrzahl)

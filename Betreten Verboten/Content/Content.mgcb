@@ -97,6 +97,54 @@
 /processorParam:TextureFormat=Color
 /build:playfield_connections.png
 
+#begin sfx/access_denied.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/access_denied.wav
+
+#begin sfx/checkpoint.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/checkpoint.wav
+
+#begin sfx/item_collect.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/item_collect.wav
+
+#begin sfx/jump.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/jump.wav
+
+#begin sfx/land.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/land.wav
+
+#begin sfx/sucess.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/sucess.wav
+
+#begin sfx/switch.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/switch.wav
+
+#begin sfx/text_skip.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:sfx/text_skip.wav
+
 #begin würfel_augen.png
 /importer:TextureImporter
 /processor:TextureProcessor
