@@ -250,7 +250,7 @@ Public Class Renderer3D
     Friend Sub Update(gameTime As GameTime)
         CamMatrix = Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll) * Matrix.CreateTranslation(Camera.Location)
         View = CamMatrix * Matrix.CreateScale(1, 1, 1 / 1080) * Matrix.CreateLookAt(New Vector3(0, 0, -1), New Vector3(0, 0, 0), Vector3.Up)
-        Projection = Matrix.CreateScale(100) * Matrix.CreateTranslation(New Vector3(-GameSize.X / 2, -GameSize.Y / 2, 0)) * ScaleMatrix * Matrix.CreateTranslation(New Vector3(GameSize.X / 2 + 1500, GameSize.Y / 2 - 500, 0)) * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
+        Projection = Matrix.CreateScale(100) * ScaleMatrix * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
     End Sub
 
     Private Sub DrawArrow(vc As Vector2, color As Color, iteration As Integer)

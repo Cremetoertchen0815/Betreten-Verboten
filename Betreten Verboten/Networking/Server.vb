@@ -176,7 +176,7 @@ Namespace Networking
                         SendToAllGameClients(gaem)
                         Exit Try
                     End If
-                    WriteString(gaem.HostConnection, index.ToString & txt)
+                    If gaem.HostConnection IsNot Nothing Then WriteString(gaem.HostConnection, index.ToString & txt)
                 Loop
             Catch ex As Exception
                 SendToAllGameClients(gaem)

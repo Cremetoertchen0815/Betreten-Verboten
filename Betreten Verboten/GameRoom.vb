@@ -281,7 +281,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -625,7 +625,7 @@ Public Class GameRoom
     End Function
 
     Private Function IsFieldCovered(player As Integer, figur As Integer, fieldA As Integer) As Boolean
-        If fieldA < 0 Or fieldA > 40 Then Return False
+        If fieldA < 0 Or fieldA >= 40 Then Return False
 
         Dim fa As Integer = PlayerFieldToGlobalField(fieldA, player)
         For i As Integer = 0 To 3
@@ -635,7 +635,7 @@ Public Class GameRoom
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And fieldB < 41 And (player <> i Or figur <> j) And fb = fa Then Return True
+                If fieldB > -1 And fieldB < 40 And (player <> i Or figur <> j) And fb = fa Then Return True
             Next
         Next
 
@@ -690,7 +690,7 @@ Public Class GameRoom
     End Function
 
     Private Function PlayerFieldToGlobalField(field As Integer, player As Integer) As Integer
-        Return ((field + player * 10 + 1) Mod 40) - 1
+        Return (field + player * 10) Mod 40
     End Function
 
     Private Function GetSecondDiceAfterSix(player As Integer) As Integer
@@ -819,7 +819,7 @@ Public Class GameRoom
             StopUpdating = True
             Microsoft.VisualBasic.MsgBox("You get angry, because you suck at this game.", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
             If Microsoft.VisualBasic.MsgBox("You are granted a single Joker. Do you want to utilize it now?", Microsoft.VisualBasic.MsgBoxStyle.YesNo, "You suck!") = Microsoft.VisualBasic.MsgBoxResult.Yes Then
-                Dim res As String = Microsoft.VisualBasic.InputBox("How far do you want to move? (12 fields are the maximum)", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
+                Dim res As String = Microsoft.VisualBasic.InputBox("How far do you want to move? (12 fields are the maximum)", "You suck!")
                 Try
                     Dim aim As Integer = CInt(res)
                     Do Until aim < 13

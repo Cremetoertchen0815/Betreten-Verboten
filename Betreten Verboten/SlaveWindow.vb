@@ -586,7 +586,7 @@ Public Class SlaveWindow
     End Function
 
     Private Function PlayerFieldToGlobalField(field As Integer, player As Integer) As Integer
-        Return ((field + player * 10 + 1) Mod 40) - 1
+        Return (field + player * 10) Mod 40
     End Function
 
     Private Function GetSecondDiceAfterSix(player As Integer) As Integer
@@ -710,7 +710,7 @@ Public Class SlaveWindow
             StopUpdating = True
             Microsoft.VisualBasic.MsgBox("You get angry, because you suck at this game.", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
             If Microsoft.VisualBasic.MsgBox("You are granted a single Joker. Do you want to utilize it now?", Microsoft.VisualBasic.MsgBoxStyle.YesNo, "You suck!") = Microsoft.VisualBasic.MsgBoxResult.Yes Then
-                Dim res As String = Microsoft.VisualBasic.InputBox("How far do you want to move? (12 fields are the maximum)", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
+                Dim res As String = Microsoft.VisualBasic.InputBox("How far do you want to move? (12 fields are the maximum)", "You suck!")
                 Try
                     Dim aim As Integer = CInt(res)
                     Do Until aim < 13
