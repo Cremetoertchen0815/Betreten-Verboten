@@ -789,5 +789,10 @@ Public Class SlaveWindow
             Return FigurFaderZ
         End Get
     End Property
+
+    Public Function GetCamPos() As CamKeyframe Implements IGameWindow.GetCamPos
+        If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
+        Return New CamKeyframe
+    End Function
 #End Region
 End Class

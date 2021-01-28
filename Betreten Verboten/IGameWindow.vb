@@ -1,4 +1,5 @@
 ﻿Imports System.Collections.Generic
+Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.Tweening
 Imports Microsoft.Xna.Framework
 
@@ -12,5 +13,6 @@ Public Interface IGameWindow
     ReadOnly Property UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     ReadOnly Property FigurFaderXY As Transition(Of Vector2)
     ReadOnly Property FigurFaderZ As Transition(Of Integer)
+    Function GetCamPos() As CamKeyframe
     Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2
 End Interface

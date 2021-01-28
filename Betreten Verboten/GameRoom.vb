@@ -6,6 +6,7 @@ Imports Betreten_Verboten.Framework.UI
 Imports System.Collections.Generic
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Framework.Graphics.PostProcessing
+Imports System.Linq
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -61,7 +62,6 @@ Public Class GameRoom
     Friend transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
     Friend playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange}
     Friend FigurFaderZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
-    Friend FigurFaderKickZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
     Friend FigurFaderEnd As Single
     Friend FigurFaderXY As Transition(Of Vector2)
     Friend FigurFaderZ As Transition(Of Integer)
@@ -169,6 +169,10 @@ Public Class GameRoom
         Status = SpielStatus.FahreFelder
         PlayStompSound = False
 
+        'Move camera
+        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe(0, 0, 0, Math.PI / 2, Math.PI / 2, Math.PI / 20), Nothing)
+        Automator.Add(FigurFaderCamera)
+
         'Initiate
         If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
             Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
@@ -204,6 +208,9 @@ Public Class GameRoom
                     Dim kickID As Integer = CheckKick(1)
                     PlayStompSound = True
                     Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
+
+                                                                                                                                  FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe, Nothing)
+                                                                                                                                  Automator.Add(FigurFaderCamera)
                                                                                                                                   SFX(4).Play()
                                                                                                                                   If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
                                                                                                                                   If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
@@ -221,6 +228,8 @@ Public Class GameRoom
             FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
         Else
             If Not PlayStompSound Then SFX(2).Play()
+            FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe, Nothing)
+            Automator.Add(FigurFaderCamera)
             SwitchPlayer()
         End If
     End Sub
@@ -319,6 +328,7 @@ Public Class GameRoom
                                 CalcMoves()
                             End If
                     End Select
+
 
                 Case SpielStatus.WähleFigur
 
@@ -448,7 +458,7 @@ Public Class GameRoom
         Renderer.Update(gameTime)
         lastmstate = mstate
         lastkstate = kstate
-        End Sub
+    End Sub
 
 #Region "Netzwerkfunktionen"
     Private Sub ReadAndProcessInputData()
@@ -559,15 +569,15 @@ Public Class GameRoom
                 Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
             End If
         ElseIf (GetHomebaseCount(SpielerIndex) = 4 And Not Is6InDiceList()) OrElse Not CanDoAMove() Then 'Falls Homebase komplett voll ist(keine Figur auf Spielfeld) und keine 6 gewürfelt wurde(oder generell kein Zug mehr möglich ist), ist kein Zug möglich und der nächste Spieler ist an der Reihe
-                StopUpdating = True
-                HUDInstructions.Text = "No move possible!"
-                Automator.Add(New TimerTransition(1000, Sub()
-                                                            SwitchPlayer()
-                                                            StopUpdating = False
-                                                        End Sub))
-            Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
-                'TODO: Add code for handling normal dice rolls and movement, as well as kicking
-                Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
+            StopUpdating = True
+            HUDInstructions.Text = "No move possible!"
+            Automator.Add(New TimerTransition(1000, Sub()
+                                                        SwitchPlayer()
+                                                        StopUpdating = False
+                                                    End Sub))
+        Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
+            'TODO: Add code for handling normal dice rolls and movement, as well as kicking
+            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
         End If
@@ -897,5 +907,12 @@ Public Class GameRoom
             Return FigurFaderZ
         End Get
     End Property
+
+    Public Function GetCamPos() As CamKeyframe Implements IGameWindow.GetCamPos
+        Return New CamKeyframe(0, -250, -50, 0, 1.2, 0)
+        If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
+        Return New CamKeyframe
+
+    End Function
 #End Region
 End Class

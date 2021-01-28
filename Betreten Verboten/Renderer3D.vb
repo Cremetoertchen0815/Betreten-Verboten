@@ -226,8 +226,6 @@ Public Class Renderer3D
                 End If
             Next
         Next
-
-        'Camera = New CamKeyframe(0, -150, -150, Math.PI / 2, Math.PI / 2, 0)
     End Sub
 
     Friend Sub Draw(gameTime As GameTime)
@@ -248,7 +246,8 @@ Public Class Renderer3D
     End Sub
 
     Friend Sub Update(gameTime As GameTime)
-        CamMatrix = Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll) * Matrix.CreateTranslation(Camera.Location)
+        Camera = Game.GetCamPos
+        CamMatrix = Matrix.CreateTranslation(Camera.Location) * Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll)
         View = CamMatrix * Matrix.CreateScale(1, 1, 1 / 1080) * Matrix.CreateLookAt(New Vector3(0, 0, -1), New Vector3(0, 0, 0), Vector3.Up)
         Projection = Matrix.CreateScale(100) * ScaleMatrix * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
     End Sub
