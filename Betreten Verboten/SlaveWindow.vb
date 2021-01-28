@@ -6,6 +6,7 @@ Imports Betreten_Verboten.Framework.UI
 Imports System.Collections.Generic
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Framework.Graphics.PostProcessing
+Imports Microsoft.Xna.Framework.Media
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -39,6 +40,7 @@ Public Class SlaveWindow
     Private ButtonFont As SpriteFont
     Private ChatFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
+    Private bgm As Song
 
     'HUD
     Private WithEvents HUD As GuiSystem
@@ -96,6 +98,10 @@ Public Class SlaveWindow
         Pfeil = Content.Load(Of Texture2D)("arrow_right")
         ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
+        bgm = Content.Load(Of Song)("Betreten Verboten")
+        MediaPlayer.Play(bgm)
+        MediaPlayer.Volume = 0.3
+        MediaPlayer.IsRepeating = True
         RNG = New Random()
 
         'Lade HUD
@@ -683,6 +689,7 @@ Public Class SlaveWindow
     Private Sub ExitButton() Handles HUDBtnA.Clicked
         SendGameClosed()
         NetworkMode = False
+        MediaPlayer.Stop()
         GameClassInstance.Exit()
     End Sub
 
@@ -702,6 +709,7 @@ Public Class SlaveWindow
     Private Sub MenuButton() Handles HUDBtnB.Clicked
         SFX(2).Play()
         SendGameClosed()
+        MediaPlayer.Stop()
         NetworkMode = False
         GameClassInstance.SwitchToSubmenu(0)
     End Sub
