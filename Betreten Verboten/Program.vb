@@ -1,5 +1,6 @@
 ﻿Imports System
 Imports System.Diagnostics
+Imports System.IO
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
@@ -32,10 +33,34 @@ Public Module Program
     <STAThread>
     Friend Sub Main()
         'Using-Block gibt nach Beendigung des Spiels Resourcen frei und ruft game.Dispose() auf.
-        GameClassInstance = New GameInstance
-        GameClassInstance.Run() 'Führe Spiel aus.
-        GameClassInstance.Dispose()
+        Try
+            GameClassInstance = New GameInstance
+            GameClassInstance.Run() 'Führe Spiel aus.
+            GameClassInstance.Dispose()
+        Catch ex As Exception
+            WriteErrorToFile(ex)
+        End Try
         StopServer()
         Process.GetCurrentProcess.Kill()
+    End Sub
+
+
+
+    Friend Sub WriteErrorToFile(ex As Exception)
+        Dim strFile As String = "yourfile.txt"
+        Dim fileExists As Boolean = File.Exists(strFile)
+        Using sw As New StreamWriter(File.Open(strFile, FileMode.OpenOrCreate))
+            sw.WriteLine(
+    If(fileExists,
+        "Error Message in  Occured at-- " & DateTime.Now,
+        "Start Error Log for today"))
+            sw.WriteLine("Type: " & ex.GetType.Name)
+            sw.WriteLine("Message: " & ex.Message)
+            sw.WriteLine("Stacktrace: " & ex.StackTrace)
+            sw.WriteLine("---------------------------------------------------------------")
+            sw.WriteLine()
+
+        End Using
+
     End Sub
 End Module

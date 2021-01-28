@@ -188,7 +188,7 @@ Namespace Networking
                 Do Until gaem.Ended
                     Dim nl As String = ReadString(con)
                     If nl(0) = "b"c And games.ContainsKey(gaem.Key) Then games.Remove(gaem.Key)
-                    If nl(0) = "l"c Then
+                    If nl(0) = "l"c Or nl = "Ich putz hier mal durch." Then
                         SendToAllGameClients(gaem)
                         gaem.HostConnection = Nothing
                         Exit Try
@@ -212,7 +212,7 @@ Namespace Networking
                 For i As Integer = 0 To 3
                     Try
                         With gaem.Players(i)
-                            If gaem.Players(i) IsNot Nothing AndAlso .Connection IsNot Nothing And Not takenconnections.Contains(.Connection) Then
+                            If gaem IsNot Nothing AndAlso gaem.Players(i) IsNot Nothing AndAlso .Connection IsNot Nothing And Not takenconnections.Contains(.Connection) Then
                                 WriteString(.Connection, "Understandable, have a nice day!")
                                 takenconnections.Add(.Connection)
                             End If

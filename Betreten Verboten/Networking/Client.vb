@@ -52,6 +52,7 @@ Namespace Networking
                     Throw New NotImplementedException()
                 End If
             Catch ex As Exception
+                WriteErrorToFile(ex)
                 Microsoft.VisualBasic.MsgBox("Verbindung zum Server nicht möglich!")
             End Try
         End Sub
@@ -63,6 +64,7 @@ Namespace Networking
                     cl.Connect("127.0.0.1", 187)
                     Return True
                 Catch ex As Exception
+                    WriteErrorToFile(ex)
                     Return False
                 End Try
             End Using
@@ -86,6 +88,7 @@ Namespace Networking
                 Console.WriteLine("[Client/I]" & tmp)
                 Return tmp
             Catch ex As Exception
+                WriteErrorToFile(ex)
                 Disconnect()
                 Return ""
             End Try
@@ -94,8 +97,10 @@ Namespace Networking
         Private Sub WriteString(str As String)
             Try
                 Console.WriteLine("[Client/O]" & str)
+                If str = "Ich putz hier mal durch." Then Console.WriteLine()
                 streamw.WriteLine(str)
             Catch ex As Exception
+                WriteErrorToFile(ex)
                 Disconnect()
             End Try
         End Sub
@@ -133,6 +138,7 @@ Namespace Networking
                 Loop
                 Return lst.ToArray
             Catch ex As Exception
+                WriteErrorToFile(ex)
                 Disconnect()
                 Return {}
             End Try
@@ -146,6 +152,7 @@ Namespace Networking
                 WriteString("membercount")
                 Return CInt(ReadString())
             Catch ex As Exception
+                WriteErrorToFile(ex)
                 Disconnect()
                 Return 0
             End Try
@@ -164,6 +171,7 @@ Namespace Networking
             WriteString("Okidoki!")
             If ReadString() <> "LET'S HAVE A BLAST!" Then Return False
             blastmode = True
+            LeaveFlag = False
             data.Clear()
             listener = New Thread(AddressOf MainClientListenerSub)
             listener.Start()
@@ -184,6 +192,7 @@ Namespace Networking
             Dim rdl As String = ReadString()
             If rdl <> "LET'S HAVE A BLAST!" Then Return False
             blastmode = True
+            LeaveFlag = False
             data.Clear()
             listener = New Thread(AddressOf MainClientListenerSub)
             listener.Start()
@@ -196,9 +205,10 @@ Namespace Networking
                     Dim tmp As String = ReadString()
                     If tmp.StartsWith("Sorry m8!") Then Throw New Exception() Else data.Add(tmp)
                     If tmp = "Understandable, have a nice day!" Then LeaveFlag = True : Exit While
-                    End While
-                    Catch ex As Exception
-                    Disconnect()
+                End While
+            Catch ex As Exception
+                WriteErrorToFile(ex)
+                Disconnect()
             End Try
             blastmode = False
             AutomaticRefresh = True

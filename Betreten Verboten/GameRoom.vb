@@ -7,6 +7,7 @@ Imports System.Collections.Generic
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Framework.Graphics.PostProcessing
 Imports System.Linq
+Imports Microsoft.Xna.Framework.Media
 
 ''' <summary>
 ''' Enthällt den eigentlichen Code für das Basis-Spiel
@@ -31,6 +32,7 @@ Public Class GameRoom
     Private lastmstate As MouseState
     Private lastkstate As KeyboardState
     Private ServerClosedManually As Boolean = False
+    Private JokerListe As New List(Of Integer)
 
     'Assets
     Friend Renderer As Renderer3D
@@ -40,6 +42,7 @@ Public Class GameRoom
     Private ButtonFont As SpriteFont
     Private ChatFont As SpriteFont
     Private RNG As Random 'Zufallsgenerator
+    Private bgm As Song
 
     'HUD
     Private WithEvents HUD As GuiSystem
@@ -98,6 +101,10 @@ Public Class GameRoom
         WürfelRahmen = Content.Load(Of Texture2D)("würfel_rahmen")
         ButtonFont = Content.Load(Of SpriteFont)("font\ButtonText")
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
+        bgm = Content.Load(Of Song)("Betreten Verboten")
+        MediaPlayer.Play(bgm)
+        MediaPlayer.Volume = 0.3
+        MediaPlayer.IsRepeating = True
         RNG = New Random()
 
         'Lade HUD
@@ -147,7 +154,6 @@ Public Class GameRoom
                 If Spielers(SpielerIndex).Typ = SpielerTyp.CPU And Not DreifachWürfeln And WürfelWerte(i) <> 6 Then Exit For
             Next
         End If
-        'DrawRectangle(Feld, Color.White)
 
         SpriteBatch.End()
 
@@ -159,7 +165,7 @@ Public Class GameRoom
     End Sub
 
     Private Function GetChrRect(vc As Vector2) As Rectangle
-        Return New Rectangle(vc.X - 15, vc.Y - 15, 30, 30)
+        Return New Rectangle(vc.X - 20, vc.Y - 20, 40, 40)
     End Function
 
     Private Sub StartMoverSub(Optional destination As Integer = -1)
@@ -290,7 +296,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 6 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -447,7 +453,6 @@ Public Class GameRoom
         If NetworkMode Then
             If Not LocalClient.Connected And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Connection lost!") : GameClassInstance.SwitchToSubmenu(0)
             If LocalClient.LeaveFlag And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Player left! Game was ended!") : GameClassInstance.SwitchToSubmenu(0)
-            'If  Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Internal error!") : GameClassInstance.SwitchToSubmenu(0)
         End If
 
         If NetworkMode Then ReadAndProcessInputData()
@@ -780,6 +785,7 @@ Public Class GameRoom
     Private Sub SwitchPlayer()
         'Setze benötigte Flags
         SpielerIndex = (SpielerIndex + 1) Mod 4
+        HUDBtnC.Active = Not JokerListe.Contains(SpielerIndex)
         If Spielers(SpielerIndex).Typ <> SpielerTyp.Online Then Status = SpielStatus.Würfel Else Status = SpielStatus.Waitn
         SendNewPlayerActive(SpielerIndex)
         If Spielers(SpielerIndex).Typ = SpielerTyp.Local Then UserIndex = SpielerIndex
@@ -800,6 +806,7 @@ Public Class GameRoom
         SFX(2).Play()
         SendGameClosed()
         NetworkMode = False
+        MediaPlayer.Stop()
         GameClassInstance.InGame = False
         GameClassInstance.Exit()
     End Sub
@@ -822,6 +829,7 @@ Public Class GameRoom
         SFX(2).Play()
         SendGameClosed()
         NetworkMode = False
+        MediaPlayer.Stop()
         GameClassInstance.SwitchToSubmenu(0)
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked
@@ -839,12 +847,14 @@ Public Class GameRoom
                     WürfelWerte(0) = If(aim > 6, 6, aim)
                     WürfelWerte(1) = If(aim > 6, aim - 6, 0)
                     CalcMoves()
+                    JokerListe.Add(SpielerIndex)
                     HUDBtnC.Active = False
                     SFX(2).Play()
                 Catch
                     Microsoft.VisualBasic.MsgBox("Alright, then don't.", "You suck!")
                 End Try
             End If
+            StopUpdating = False
         Else
             SFX(0).Play()
         End If
@@ -909,8 +919,8 @@ Public Class GameRoom
     End Property
 
     Public Function GetCamPos() As CamKeyframe Implements IGameWindow.GetCamPos
-        Return New CamKeyframe(0, -250, -50, 0, 1.2, 0)
-        If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
+        'Return New CamKeyframe(0, -250, -50, 0, 1.2, 0)
+        'If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
         Return New CamKeyframe
 
     End Function
