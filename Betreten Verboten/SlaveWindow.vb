@@ -66,7 +66,7 @@ Public Class SlaveWindow
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
     Friend FigurFaderCamera As New Transition(Of CamKeyframe)
-    'Friend FigurFaderEndMethod As Action
+    Friend PlayStompSound As Boolean
 
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
@@ -128,6 +128,7 @@ Public Class SlaveWindow
         FigurFaderEnd = If(destination < 0, Math.Max(Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2), 0) + Fahrzahl, destination)
         Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
         Status = SpielStatus.FahreFelder
+        PlayStompSound = False
 
         'Initiate
         If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
@@ -158,10 +159,12 @@ Public Class SlaveWindow
 
         If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) < FigurFaderEnd Then
             If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
+                SFX(3).Play()
                 Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
                 If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1 Then
                     Dim kickID As Integer = CheckKick(1)
                     Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
+                                                                                                                                  SFX(4).Play()
                                                                                                                                   If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
                                                                                                                                   If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
                                                                                                                                   Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
@@ -176,6 +179,9 @@ Public Class SlaveWindow
             End If
             FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_Linear(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
             FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
+
+        Else
+            If Not PlayStompSound Then SFX(2).Play()
         End If
     End Sub
 
@@ -243,7 +249,7 @@ Public Class SlaveWindow
 
                         WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                         'Implementiere einen Cooldown für die Würfelanimation
-                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown)
+                        If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
 
                         If WürfelTimer > WürfelDauer Then
                             WürfelTimer = 0
@@ -685,6 +691,7 @@ Public Class SlaveWindow
     Private Sub ChatSendButton() Handles HUDChatBtn.Clicked
         If Not chatbtnpressed Then
             chatbtnpressed = True
+            SFX(2).Play()
             Dim txt As String = Microsoft.VisualBasic.InputBox("Enter your message: ", "Send message", "")
             If txt <> "" Then
                 SendChatMessage(txt)
@@ -693,12 +700,35 @@ Public Class SlaveWindow
         End If
     End Sub
     Private Sub MenuButton() Handles HUDBtnB.Clicked
+        SFX(2).Play()
         SendGameClosed()
         NetworkMode = False
         GameClassInstance.SwitchToSubmenu(0)
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked
-
+        If Status = SpielStatus.Würfel Then
+            StopUpdating = True
+            Microsoft.VisualBasic.MsgBox("You get angry, because you suck at this game.", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
+            If Microsoft.VisualBasic.MsgBox("You are granted a single Joker. Do you want to utilize it now?", Microsoft.VisualBasic.MsgBoxStyle.YesNo, "You suck!") = Microsoft.VisualBasic.MsgBoxResult.Yes Then
+                Dim res As String = Microsoft.VisualBasic.InputBox("How far do you want to move? (12 fields are the maximum)", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
+                Try
+                    Dim aim As Integer = CInt(res)
+                    Do Until aim < 13
+                        res = Microsoft.VisualBasic.InputBox("Screw you! I said AT MAXIMUM 12 FIELDS!", "You suck!")
+                        aim = CInt(res)
+                    Loop
+                    WürfelWerte(0) = If(aim > 6, 6, aim)
+                    WürfelWerte(1) = If(aim > 6, aim - 6, 0)
+                    CalcMoves()
+                    HUDBtnC.Active = False
+                    SFX(2).Play()
+                Catch
+                    Microsoft.VisualBasic.MsgBox("Alright, then don't.", "You suck!")
+                End Try
+            End If
+        Else
+            SFX(0).Play()
+        End If
     End Sub
 #End Region
 

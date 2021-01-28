@@ -3,6 +3,7 @@ Imports System.Diagnostics
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
+Imports Microsoft.Xna.Framework.Audio
 Imports Microsoft.Xna.Framework.Content
 Imports Microsoft.Xna.Framework.Graphics
 
@@ -23,6 +24,7 @@ Public Module Program
     Friend Property DefaultFont As SpriteFont
     Friend Property GameClassInstance As GameInstance
     Friend Property LocalClient As Client
+    Friend Property SFX As SoundEffect()
 
     ''' <summary>
     ''' Hier steigt die Anwendung ein.

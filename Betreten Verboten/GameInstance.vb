@@ -4,6 +4,7 @@ Imports Betreten_Verboten.Framework.Graphics.PostProcessing
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Networking
 Imports Microsoft.Xna.Framework
+Imports Microsoft.Xna.Framework.Audio
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
 
@@ -76,14 +77,23 @@ Public Class GameInstance
 
         'Erstelle SpriteBatchch
         SpriteBatch = New SpriteBatch(GraphicsDevice)
+
+        'Lade Assets
         DefaultFont = Content.Load(Of SpriteFont)("font\fnt_HKG_17_M")
         TitleFont = Content.Load(Of SpriteFont)("font\MenuTitle")
         MediumFont = Content.Load(Of SpriteFont)("font\MenuMain")
-
-        Program.Automator = New Framework.Tweening.TweenManager
-        Program.ReferencePixel = New Texture2D(Graphics.GraphicsDevice, 1, 1)
-        Program.ReferencePixel.SetData(Of Color)({Color.White})
-        Program.Dev = GraphicsDevice
+        Automator = New TweenManager
+        ReferencePixel = New Texture2D(Graphics.GraphicsDevice, 1, 1)
+        ReferencePixel.SetData({Color.White})
+        Dev = GraphicsDevice
+        SFX = {Content.Load(Of SoundEffect)("sfx/access_denied"),
+              Content.Load(Of SoundEffect)("sfx/checkpoint"),
+              Content.Load(Of SoundEffect)("sfx/item_collect"),
+              Content.Load(Of SoundEffect)("sfx/jump"),
+              Content.Load(Of SoundEffect)("sfx/land"),
+              Content.Load(Of SoundEffect)("sfx/sucess"),
+              Content.Load(Of SoundEffect)("sfx/switch"),
+              Content.Load(Of SoundEffect)("sfx/text_skip")}
 
 
         'Generate temporary main rendertarget for bloom effect
@@ -96,7 +106,7 @@ Public Class GameInstance
             DepthFormat.Depth24, 0, RenderTargetUsage.DiscardContents) With {.Name = "TmpA"}
 
 
-        'Generate Bloom filter
+        'Generiere Bloom filter
         ffx = New BloomFilter
         ffx.Load(GraphicsDevice, Content, GameSize.X, GameSize.Y)
         ffx.BloomPreset = BloomFilter.BloomPresets.SuperWide
@@ -105,6 +115,7 @@ Public Class GameInstance
         ffx.BloomUseLuminance = True
 
 
+        'Setze verschiedene flags und bereite Variablen von
         Blinker = New Transition(Of Single) With {.Value = 0}
         FgColor = New Color(0, 180, 0)
         BrightFX = Content.Load(Of Effect)("fx/fx_fadetocolor")
@@ -161,20 +172,20 @@ Public Class GameInstance
                     Case 0
                         'Wähle Menüpunkt
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(1)
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed And LocalClient.Connected Then SwitchToSubmenu(2)
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then If LocalClient.Connected Then SwitchToSubmenu(2) Else SFX(0).Play()
                         If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(3)
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then
                             Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub() [Exit]())
                             Automator.Add(Schwarzblende)
                         End If
                     Case 1
-                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2)
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2)
-                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 3, 2)
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2 : SFX(2).Play()
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
                         If New Rectangle(560, 900, 400, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         If New Rectangle(960, 900, 400, 100).Contains(mpos) And OneshotPressed Then
-
+                            SFX(2).Play()
                             If IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online) Then
                                 OpenInputbox("Enter a name for the round:", "Start Round", AddressOf StartNewRound)
                             Else
@@ -182,21 +193,26 @@ Public Class GameInstance
                             End If
                         End If
                     Case 2
-                        If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex -= 1
-                        If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex += 1
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And SelectedOnlineGaemIndex > -1 Then OpenGaemViaNetwork(OnlineGameInstances(SelectedOnlineGaemIndex))
+                        If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex -= 1 : SFX(2).Play()
+                        If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex += 1 : SFX(2).Play()
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then If SelectedOnlineGaemIndex > -1 Then OpenGaemViaNetwork(OnlineGameInstances(SelectedOnlineGaemIndex)) : SFX(2).Play() Else SFX(0).Play()
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         SelectedOnlineGaemIndex = Math.Min(Math.Max(SelectedOnlineGaemIndex, 0), OnlineGameInstances.Length - 1)
                     Case 3
-                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed And Not IsConnectedToServer Then OpenInputbox("Enter IP-adress:", "Open server", Sub(x) LocalClient.Connect(x, My.Settings.Username), "127.0.0.1")
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed And IsConnectedToServer Then LocalClient.Disconnect()
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed And Not ServerActive Then
-                            'If LocalClient.Connected Then LocalClient.Disconnect()
-                            If LocalClient.TryConnect Then
-                                Microsoft.VisualBasic.MsgBox("Other server already active on this port")
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then If Not IsConnectedToServer Then OpenInputbox("Enter IP-adress:", "Open server", Sub(x) LocalClient.Connect(x, My.Settings.Username), "127.0.0.1") : SFX(2).Play() Else SFX(0).Play()
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then If IsConnectedToServer Then LocalClient.Disconnect() : SFX(2).Play() Else SFX(0).Play()
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then
+                            If Not ServerActive Then
+                                'If LocalClient.Connected Then LocalClient.Disconnect()
+                                If LocalClient.TryConnect Then
+                                    Microsoft.VisualBasic.MsgBox("Other server already active on this port")
+                                Else
+                                    StartServer()
+                                    LocalClient.Connect("127.0.0.1", My.Settings.Username)
+                                End If
+                                SFX(2).Play()
                             Else
-                                StartServer()
-                                LocalClient.Connect("127.0.0.1", My.Settings.Username)
+                                SFX(0).Play()
                             End If
                         End If
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
@@ -204,12 +220,16 @@ Public Class GameInstance
             End If
 
             'Wechsel Benutzername
-            If New Rectangle(New Point(20, 40), MediumFont.MeasureString("Username: " & My.Settings.Username).ToPoint).Contains(mpos) And OneshotPressed And Not IsConnectedToServer Then
-                OpenInputbox("Enter the new username: ", "Change username", Sub(x)
-                                                                                My.Settings.Username = x
-                                                                                My.Settings.Save()
-                                                                            End Sub, My.Settings.Username)
-
+            If New Rectangle(New Point(20, 40), MediumFont.MeasureString("Username: " & My.Settings.Username).ToPoint).Contains(mpos) And OneshotPressed Then
+                If Not IsConnectedToServer Then
+                    SFX(2).Play()
+                    OpenInputbox("Enter the new username: ", "Change username", Sub(x)
+                                                                                    My.Settings.Username = x
+                                                                                    My.Settings.Save()
+                                                                                End Sub, My.Settings.Username)
+                Else
+                    SFX(0).Play()
+                End If
             End If
 
             'Grab data from Server in a set interval
@@ -366,6 +386,8 @@ Public Class GameInstance
 
 
     Friend Sub SwitchToSubmenu(submenu As Integer, Optional InBetweenOperation As Action = Nothing)
+        'Spiele Sound
+        SFX(2).Play()
         'Bereite Submenu vor
         Select Case submenu
             Case 1
