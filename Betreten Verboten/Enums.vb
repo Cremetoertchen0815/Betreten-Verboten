@@ -34,7 +34,6 @@ Public Enum PlayFieldPos
 End Enum
 
 Public Enum Difficulty
-    Easy = 0
-    Medium = 1
-    Hard = 2
+    Brainles = 0
+    Smart = 1
 End Enum
