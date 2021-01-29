@@ -3,6 +3,6 @@
 -Implementiere Menu				(bis 23.01.21) Check!
 -Implementiere Networking		(bis 25.01.21) Check!
 -Implementiere 3D-Movement		(bis 28.01.21) Check!
--Implementiere Camera Movement  (bis 28.01.21)
--Implementiere SFX + BGM    	(bis 29.01.21)
--Testen							(bis 29.01.21)
+-Implementiere Camera Movement  (bis 28.01.21) Check!
+-Implementiere SFX + BGM    	(bis 29.01.21) Check!
+-Testen							(bis 29.01.21) Check!

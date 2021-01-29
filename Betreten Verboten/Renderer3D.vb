@@ -1,6 +1,7 @@
 ﻿Imports System.Collections.Generic
 Imports System.IO
 Imports Betreten_Verboten.Framework.Graphics
+Imports Betreten_Verboten.Framework.Tweening
 Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 
@@ -25,6 +26,7 @@ Public Class Renderer3D
     Private Center As Vector2
     Private transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
     Private playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange}
+    Friend AdditionalZPos As New Transition(Of Single)
     Sub New(game As IGameWindow)
         Me.Game = game
     End Sub
@@ -235,9 +237,9 @@ Public Class Renderer3D
     End Sub
 
     Private Sub DrawChr(pos As Vector2, color As Color, Optional zpos As Integer = 0, Optional scale As Single = 1)
-        EffectB.World = figur_model.STLHeader.CenterMatrix * Matrix.CreateTranslation(0, 0, 12) * Matrix.CreateScale(3.5 * scale * New Vector3(1, 1, -1)) * Matrix.CreateRotationY(Math.PI) * Matrix.CreateTranslation(-pos.X, -pos.Y, -zpos)
-        EffectB.EmissiveColor = color.ToVector3 * 0.15
-        EffectB.DirectionalLight0.DiffuseColor = color.ToVector3 * 0.5 '// a gray light
+        EffectB.World = figur_model.STLHeader.CenterMatrix * Matrix.CreateTranslation(0, 0, 12) * Matrix.CreateScale(3.5 * scale * New Vector3(1, 1, -1)) * Matrix.CreateRotationY(Math.PI) * Matrix.CreateTranslation(-pos.X, -pos.Y, -zpos - AdditionalZPos.Value)
+        EffectB.EmissiveColor = color.ToVector3 * 0.12
+        EffectB.DirectionalLight0.DiffuseColor = color.ToVector3 * 0.6 '// a gray light
         For Each pass As EffectPass In EffectB.CurrentTechnique.Passes
             pass.Apply()
 
@@ -247,7 +249,7 @@ Public Class Renderer3D
 
     Friend Sub Update(gameTime As GameTime)
         Camera = Game.GetCamPos
-        CamMatrix = Matrix.CreateTranslation(Camera.Location) * Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll)
+        CamMatrix = Matrix.CreateFromYawPitchRoll(Camera.Yaw, Camera.Pitch, Camera.Roll) * Matrix.CreateTranslation(Camera.Location)
         View = CamMatrix * Matrix.CreateScale(1, 1, 1 / 1080) * Matrix.CreateLookAt(New Vector3(0, 0, -1), New Vector3(0, 0, 0), Vector3.Up)
         Projection = Matrix.CreateScale(100) * ScaleMatrix * Matrix.CreatePerspective(Dev.Viewport.Width, Dev.Viewport.Height, 1, 100000)
     End Sub

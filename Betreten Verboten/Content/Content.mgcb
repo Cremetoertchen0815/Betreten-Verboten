@@ -25,11 +25,11 @@
 /processorParam:TextureFormat=Color
 /build:arrow_right.png
 
-#begin Betreten Verboten.mp3
-/importer:Mp3Importer
+#begin Betreten Verboten.wav
+/importer:WavImporter
 /processor:SongProcessor
 /processorParam:Quality=Best
-/build:Betreten Verboten.mp3
+/build:Betreten Verboten.wav
 
 #begin font/ButtonText.spritefont
 /importer:FontDescriptionImporter

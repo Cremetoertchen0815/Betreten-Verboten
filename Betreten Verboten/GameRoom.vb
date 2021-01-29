@@ -69,7 +69,7 @@ Public Class GameRoom
     Friend FigurFaderXY As Transition(Of Vector2)
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe)
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-60, -100, -80, 0, 1.2, 0)}
     Friend CPUTimer As Integer
     Friend PlayStompSound As Boolean
 
@@ -81,6 +81,7 @@ Public Class GameRoom
     Private Const RollDiceCooldown As Integer = 800
     Private Const CPUThinkingTime As Integer = 1500
     Private Const DopsHöhe As Integer = 100
+    Private Const CamSpeed As Integer = 1500
 
     Friend Sub Init()
         'Bereite Flags und Variablen vor
@@ -103,7 +104,7 @@ Public Class GameRoom
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
         bgm = Content.Load(Of Song)("Betreten Verboten")
         MediaPlayer.Play(bgm)
-        MediaPlayer.Volume = 0.3
+        MediaPlayer.Volume = 0.1
         MediaPlayer.IsRepeating = True
         RNG = New Random()
 
@@ -112,7 +113,7 @@ Public Class GameRoom
         HUDBtnA = New Controls.Button("Exit Game", New Vector2(1500, 50), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
         HUDBtnB = New Controls.Button("Main Menu", New Vector2(1500, 200), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
         HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
-        HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
+        HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = New Color(0, 0, 0, 100), .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
         HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 1005)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
         InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
@@ -175,10 +176,6 @@ Public Class GameRoom
         Status = SpielStatus.FahreFelder
         PlayStompSound = False
 
-        'Move camera
-        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe(0, 0, 0, Math.PI / 2, Math.PI / 2, Math.PI / 20), Nothing)
-        Automator.Add(FigurFaderCamera)
-
         'Initiate
         If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
             Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
@@ -214,9 +211,6 @@ Public Class GameRoom
                     Dim kickID As Integer = CheckKick(1)
                     PlayStompSound = True
                     Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
-
-                                                                                                                                  FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe, Nothing)
-                                                                                                                                  Automator.Add(FigurFaderCamera)
                                                                                                                                   SFX(4).Play()
                                                                                                                                   If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
                                                                                                                                   If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
@@ -234,8 +228,6 @@ Public Class GameRoom
             FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
         Else
             If Not PlayStompSound Then SFX(2).Play()
-            FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), GetCamPos, New CamKeyframe, Nothing)
-            Automator.Add(FigurFaderCamera)
             SwitchPlayer()
         End If
     End Sub
@@ -272,6 +264,9 @@ Public Class GameRoom
                 PostChat(Spielers(win).Name & " won!", Color.White)
                 SendWinFlag(win)
                 Status = SpielStatus.SpielZuEnde
+                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(5000), GetCamPos, New CamKeyframe(-90, -240, 0, Math.PI / 4 * 5, Math.PI / 2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+                Renderer.AdditionalZPos = New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(5000), 0, 1000, Nothing)
+                Automator.Add(Renderer.AdditionalZPos)
             End If
 
             'Setze den lokalen Spieler
@@ -363,6 +358,9 @@ Public Class GameRoom
                                     If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
                                         HUDInstructions.Text = "Incorrect move!"
                                     Else
+                                        'Move camera
+                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+
                                         SFX(2).Play()
                                         'Setze flags
                                         Status = SpielStatus.FahreFelder
@@ -401,6 +399,10 @@ Public Class GameRoom
                                         'Setze flags
                                         Status = SpielStatus.FahreFelder
                                         FigurFaderZiel = (SpielerIndex, k)
+
+                                        'Move camera
+                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+
                                         'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
                                         StartMoverSub()
                                         SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
@@ -550,6 +552,8 @@ Public Class GameRoom
                 StopUpdating = True
                 HUDInstructions.Text = "Field already covered! Move with the other piece!"
                 Automator.Add(New TimerTransition(ErrorCooldown, Sub()
+                                                                     'Move camera
+                                                                     FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
                                                                      Status = SpielStatus.WähleFigur
                                                                      StopUpdating = False
                                                                  End Sub))
@@ -569,6 +573,10 @@ Public Class GameRoom
                 StartMoverSub()
                 SendFigureTransition(SpielerIndex, homebase, Fahrzahl)
             Else 'We can't so s$*!, also schieben wir unsere Probleme einfach auf den nächst besten Deppen, der gleich dran ist
+
+                'Move camera
+                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
+
                 Status = SpielStatus.WähleFigur
                 StopUpdating = True
                 Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
@@ -585,6 +593,9 @@ Public Class GameRoom
             Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
+
+            'Move camera
+            FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
         End If
     End Sub
 
@@ -803,12 +814,14 @@ Public Class GameRoom
 
 #Region "Knopfgedrücke"
     Private Sub ExitButton() Handles HUDBtnA.Clicked
-        SFX(2).Play()
-        SendGameClosed()
-        NetworkMode = False
-        MediaPlayer.Stop()
-        GameClassInstance.InGame = False
-        GameClassInstance.Exit()
+        If Microsoft.VisualBasic.MsgBox("Do you really want to leave?", Microsoft.VisualBasic.MsgBoxStyle.YesNo) = Microsoft.VisualBasic.MsgBoxResult.Yes Then
+            SFX(2).Play()
+            SendGameClosed()
+            NetworkMode = False
+            MediaPlayer.Stop()
+            GameClassInstance.InGame = False
+            GameClassInstance.Exit()
+        End If
     End Sub
 
     Dim chatbtnpressed As Boolean = False
@@ -826,11 +839,13 @@ Public Class GameRoom
         End If
     End Sub
     Private Sub MenuButton() Handles HUDBtnB.Clicked
-        SFX(2).Play()
-        SendGameClosed()
-        NetworkMode = False
-        MediaPlayer.Stop()
-        GameClassInstance.SwitchToSubmenu(0)
+        If Microsoft.VisualBasic.MsgBox("Do you really want to leave?", Microsoft.VisualBasic.MsgBoxStyle.YesNo) = Microsoft.VisualBasic.MsgBoxResult.Yes Then
+            SFX(2).Play()
+            SendGameClosed()
+            NetworkMode = False
+            MediaPlayer.Stop()
+            GameClassInstance.SwitchToSubmenu(0)
+        End If
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked
         If Status = SpielStatus.Würfel Then
@@ -919,8 +934,7 @@ Public Class GameRoom
     End Property
 
     Public Function GetCamPos() As CamKeyframe Implements IGameWindow.GetCamPos
-        'Return New CamKeyframe(0, -250, -50, 0, 1.2, 0)
-        'If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
+        If FigurFaderCamera IsNot Nothing Then Return FigurFaderCamera.Value
         Return New CamKeyframe
 
     End Function

@@ -67,7 +67,7 @@ Public Class SlaveWindow
     Friend FigurFaderXY As Transition(Of Vector2)
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe)
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-60, -100, -80, 0, 1.2, 0)}
     Friend PlayStompSound As Boolean
 
     Private Const FDist As Integer = 85
@@ -78,6 +78,7 @@ Public Class SlaveWindow
     Private Const RollDiceCooldown As Integer = 800
     Private Const CPUThinkingTime As Integer = 1500
     Private Const DopsHöhe As Integer = 100
+    Private Const CamSpeed As Integer = 1500
 
     Friend Sub Init()
         'Bereite Flags und Variablen vor
@@ -100,7 +101,7 @@ Public Class SlaveWindow
         ChatFont = Content.Load(Of SpriteFont)("font\ChatText")
         bgm = Content.Load(Of Song)("Betreten Verboten")
         MediaPlayer.Play(bgm)
-        MediaPlayer.Volume = 0.3
+        MediaPlayer.Volume = 0.1
         MediaPlayer.IsRepeating = True
         RNG = New Random()
 
@@ -109,7 +110,7 @@ Public Class SlaveWindow
         HUDBtnA = New Controls.Button("Exit Game", New Vector2(1500, 50), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnA)
         HUDBtnB = New Controls.Button("Main Menu", New Vector2(1500, 200), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnB)
         HUDBtnC = New Controls.Button("Anger", New Vector2(1500, 350), New Vector2(370, 120)) With {.Font = ButtonFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDBtnC)
-        HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
+        HUDChat = New Controls.TextscrollBox(Function() Chat.ToArray, New Vector2(50, 50), New Vector2(400, 800)) With {.Font = ChatFont, .BackgroundColor = New Color(0, 0, 0, 100), .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow, .LenLimit = 35} : HUD.Controls.Add(HUDChat)
         HUDChatBtn = New Controls.Button("Send Message", New Vector2(50, 870), New Vector2(150, 30)) With {.Font = ChatFont, .BackgroundColor = Color.Black, .Border = New ControlBorder(Color.Yellow, 3), .Color = Color.Yellow} : HUD.Controls.Add(HUDChatBtn)
         HUDInstructions = New Controls.Label("Wait for all Players to arrive...", New Vector2(50, 1005)) With {.Font = Content.Load(Of SpriteFont)("font/InstructionText"), .Color = Color.BlanchedAlmond} : HUD.Controls.Add(HUDInstructions)
         InstructionFader = New PropertyTransition(New TransitionTypes.TransitionType_EaseInEaseOut(700), HUDInstructions, "Color", Color.Lerp(Color.BlanchedAlmond, Color.Black, 0.5), Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(InstructionFader)
@@ -308,6 +309,8 @@ Public Class SlaveWindow
                             If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
                                 HUDInstructions.Text = "Incorrect move!"
                             Else
+                                'Move camera
+                                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
                                 'Setze flags
                                 Status = SpielStatus.Waitn
                                 SubmitResults(k, defaultmov + Fahrzahl)
@@ -400,6 +403,9 @@ Public Class SlaveWindow
                     HUDInstructions.Text = "Game over!"
                     PostChat(Spielers(playr).Name & " won!", Color.White)
                     Status = SpielStatus.SpielZuEnde
+                    FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(5000), GetCamPos, New CamKeyframe(-90, -240, 0, Math.PI / 4 * 5, Math.PI / 2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+                    Renderer.AdditionalZPos = New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(5000), 0, 1000, Nothing)
+                    Automator.Add(Renderer.AdditionalZPos)
             End Select
         Next
     End Sub
@@ -445,6 +451,8 @@ Public Class SlaveWindow
                 StopUpdating = True
                 HUDInstructions.Text = "Field already covered! Move with the other piece!"
                 Automator.Add(New TimerTransition(ErrorCooldown, Sub()
+                                                                     'Move camera
+                                                                     FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
                                                                      Status = SpielStatus.WähleFigur
                                                                      StopUpdating = False
                                                                  End Sub))
@@ -452,6 +460,27 @@ Public Class SlaveWindow
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then 'Gibt an, dass das Start-Feld von einer eigenen Figur belegt ist(welche nicht gekickt werden kann) und dass selbst beim Wurf einer 6 keine weitere Figur die Homebase verlassen kann
             HUDInstructions.Text = "Start field blocked! Move pieces out of the way first!"
             Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
+
+
+
+            If IsFutureFieldCoveredByOwnFigure(SpielerIndex, 0, -1) AndAlso Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl, -1) Then 'Spieler auf dem Start-Feld muss wenn mögl.  bewegt werden
+                homebase = GetFieldID(SpielerIndex, 0).Item2
+                FigurFaderZiel = (SpielerIndex, homebase)
+                SubmitResults(homebase, Fahrzahl)
+            ElseIf IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl, -1) AndAlso Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl * 2, -1) Then 'Wenn Spieler auf dem Start-Feld nicht kann, fahre stattdessen mit nächtem blockierenden Spieler
+                homebase = GetFieldID(SpielerIndex, WürfelWerte(1)).Item2
+                FigurFaderZiel = (SpielerIndex, homebase)
+                SubmitResults(homebase, Fahrzahl)
+            Else 'We can't so s$*!, also schieben wir unsere Probleme einfach auf den nächst besten Deppen, der gleich dran ist
+
+                'Move camera
+                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
+
+                Status = SpielStatus.WähleFigur
+                StopUpdating = True
+                Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
+            End If
+
             Status = SpielStatus.WähleFigur
             StopUpdating = True
             Automator.Add(New TimerTransition(ErrorCooldown, Sub() StopUpdating = False))
@@ -467,6 +496,9 @@ Public Class SlaveWindow
             Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
+
+            'Move camera
+            FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(0, 0, 0, 0, 0, 0), Nothing) : Automator.Add(FigurFaderCamera)
         End If
     End Sub
 
@@ -687,10 +719,12 @@ Public Class SlaveWindow
 
 #Region "Knopfgedrücke"
     Private Sub ExitButton() Handles HUDBtnA.Clicked
-        SendGameClosed()
-        NetworkMode = False
-        MediaPlayer.Stop()
-        GameClassInstance.Exit()
+        If Microsoft.VisualBasic.MsgBox("Do you really want to leave?", Microsoft.VisualBasic.MsgBoxStyle.YesNo) = Microsoft.VisualBasic.MsgBoxResult.Yes Then
+            SendGameClosed()
+            NetworkMode = False
+            MediaPlayer.Stop()
+            GameClassInstance.Exit()
+        End If
     End Sub
 
     Dim chatbtnpressed As Boolean = False
@@ -707,12 +741,15 @@ Public Class SlaveWindow
         End If
     End Sub
     Private Sub MenuButton() Handles HUDBtnB.Clicked
-        SFX(2).Play()
-        SendGameClosed()
-        MediaPlayer.Stop()
-        NetworkMode = False
-        GameClassInstance.SwitchToSubmenu(0)
+        If Microsoft.VisualBasic.MsgBox("Do you really want to leave?", Microsoft.VisualBasic.MsgBoxStyle.YesNo) = Microsoft.VisualBasic.MsgBoxResult.Yes Then
+            SFX(2).Play()
+            SendGameClosed()
+            MediaPlayer.Stop()
+            NetworkMode = False
+            GameClassInstance.SwitchToSubmenu(0)
+        End If
     End Sub
+
     Private Sub AngerButton() Handles HUDBtnC.Clicked
         If Status = SpielStatus.Würfel Then
             StopUpdating = True
