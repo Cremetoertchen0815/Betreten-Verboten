@@ -69,9 +69,10 @@ Public Class GameRoom
     Friend FigurFaderXY As Transition(Of Vector2)
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-60, -100, -80, 0, 1.2, 0)}
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)}
     Friend CPUTimer As Integer
     Friend PlayStompSound As Boolean
+    Friend StdCam As New CamKeyframe(-30, -20, -50, 0, 0.75, 0)
 
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
@@ -359,7 +360,7 @@ Public Class GameRoom
                                         HUDInstructions.Text = "Incorrect move!"
                                     Else
                                         'Move camera
-                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, StdCam, Nothing) : Automator.Add(FigurFaderCamera)
 
                                         SFX(2).Play()
                                         'Setze flags
@@ -401,7 +402,7 @@ Public Class GameRoom
                                         FigurFaderZiel = (SpielerIndex, k)
 
                                         'Move camera
-                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, StdCam, Nothing) : Automator.Add(FigurFaderCamera)
 
                                         'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
                                         StartMoverSub()
@@ -672,7 +673,8 @@ Public Class GameRoom
         Dim fa As Integer = PlayerFieldToGlobalField(field, player)
         For j As Integer = 0 To 3
             For i As Integer = 0 To 3
-                If fa = PlayerFieldToGlobalField(Spielers(j).Spielfiguren(i), j) Then Return (j, i)
+                Dim fieldB As Integer = Spielers(j).Spielfiguren(i)
+                If fieldB > 0 And field < 40 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
             Next
         Next
         Return (-1, -1)

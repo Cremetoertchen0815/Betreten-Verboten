@@ -110,9 +110,9 @@ Public Class GameInstance
         ffx = New BloomFilter
         ffx.Load(GraphicsDevice, Content, GameSize.X, GameSize.Y)
         ffx.BloomPreset = BloomFilter.BloomPresets.SuperWide
-        ffx.BloomThreshold = 0.02
-        ffx.BloomStrengthMultiplier = 0.67
-        ffx.BloomUseLuminance = True
+        ffx.BloomThreshold = 0
+        ffx.BloomStrengthMultiplier = 0.65
+        ffx.BloomUseLuminance = False
 
 
         'Setze verschiedene flags und bereite Variablen von
