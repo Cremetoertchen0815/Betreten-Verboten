@@ -6,3 +6,12 @@
 -Implementiere Camera Movement  (bis 28.01.21) Check!
 -Implementiere SFX + BGM    	(bis 29.01.21) Check!
 -Testen							(bis 29.01.21) Check!
+
+-Implementiere dass man nicht im Haus überholen kann                                              Check!
+-Implementiere dass man bis zu fünf mal 6 würfeln kann in einem normalen Zug                      Check!
+-Implementiere dass man wenn alle Figuren im Haus am Anschlag sind wieder dreimal würfeln kann    Check!
+-Implementiere rejoinen																			  Check!
+-Fix Glitch, dass man Haus nicht entern kann, wenn eigene Spielfigur neben Haus steht			  Check!
+-Implementiere, dass die alte IP wieder im Eingabefeld eingetragen wird(by standard)              Check!
+
+-Implementiere mehrspielige Spielfelder

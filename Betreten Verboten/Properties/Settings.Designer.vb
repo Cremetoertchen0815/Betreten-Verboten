@@ -76,6 +76,18 @@ Partial Friend NotInheritable Class Settings
             Me("Schwierigkeitsgrad") = value
         End Set
     End Property
+    
+    <Global.System.Configuration.UserScopedSettingAttribute(),  _
+     Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+     Global.System.Configuration.DefaultSettingValueAttribute("127.0.0.1")>  _
+    Public Property IP() As String
+        Get
+            Return CType(Me("IP"),String)
+        End Get
+        Set
+            Me("IP") = value
+        End Set
+    End Property
 End Class
 
 Namespace My

@@ -16,6 +16,7 @@ Public Class SlaveWindow
 
     'Spiele-Flags und Variables
     Friend Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
+    Friend Rejoin As Boolean = False
     Private SpielerIndex As Integer = -1 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     Private NetworkMode As Boolean = True
     Friend UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
@@ -67,7 +68,7 @@ Public Class SlaveWindow
     Friend FigurFaderXY As Transition(Of Vector2)
     Friend FigurFaderZ As Transition(Of Integer)
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-60, -100, -80, 0, 1.2, 0)}
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)}
     Friend PlayStompSound As Boolean
 
     Private Const FDist As Integer = 85
@@ -165,8 +166,8 @@ Public Class SlaveWindow
         Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
 
         If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) < FigurFaderEnd Then
+            SFX(3).Play()
             If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
-                SFX(3).Play()
                 Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
                 If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1 Then
                     Dim kickID As Integer = CheckKick(1)
@@ -273,7 +274,7 @@ Public Class SlaveWindow
                                                                                             WürfelWerte(it) = WürfelAktuelleZahl
                                                                                             StopUpdating = False
                                                                                             'Prüfe, ob Würfeln beendet werden soll
-                                                                                            If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And Not (it = 0 And WürfelAktuelleZahl >= 6)) Or (DreifachWürfeln And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
+                                                                                            If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And WürfelAktuelleZahl < 6) Or ((DreifachWürfeln Or GetHomebaseCount(SpielerIndex) > 0) And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
                                                                                             WürfelAktuelleZahl = 0
                                                                                         End Sub))
 
@@ -306,11 +307,11 @@ Public Class SlaveWindow
 
                         'Prüfe Figur nach Mouse-Klick
                         If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
-                            If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
+                            If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Or IsÜberholingInSeHaus(defaultmov) Then
                                 HUDInstructions.Text = "Incorrect move!"
                             Else
                                 'Move camera
-                                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-60, -100, -80, 0, 1.2, 0), Nothing) : Automator.Add(FigurFaderCamera)
+                                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, New CamKeyframe(-30, -20, -50, 0, 0.75, 0), Nothing) : Automator.Add(FigurFaderCamera)
                                 'Setze flags
                                 Status = SpielStatus.Waitn
                                 SubmitResults(k, defaultmov + Fahrzahl)
@@ -348,8 +349,7 @@ Public Class SlaveWindow
         'Network stuff
         If NetworkMode Then
             If Not LocalClient.Connected And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Connection lost!") : GameClassInstance.SwitchToSubmenu(0)
-            If LocalClient.LeaveFlag And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Player left! Game was ended!") : GameClassInstance.SwitchToSubmenu(0)
-            'If  Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Internal error!") : GameClassInstance.SwitchToSubmenu(0)
+            If LocalClient.LeaveFlag And Status <> SpielStatus.SpielZuEnde Then StopUpdating = True : NetworkMode = False : Microsoft.VisualBasic.MsgBox("Host left! Game was ended!") : GameClassInstance.SwitchToSubmenu(0)
         End If
 
         If NetworkMode Then ReadAndProcessInputData()
@@ -374,8 +374,15 @@ Public Class SlaveWindow
                     Spielers(source).Bereit = True
                     PostChat(Spielers(source).Name & " arrived!", Color.White)
                 Case "b"c 'Begin gaem
+                    StopUpdating = False
                     Status = SpielStatus.Waitn
                     PostChat("The game has started!", Color.White)
+                Case "e"c 'Suspend gaem
+                    Dim who As Integer = CInt(element(1).ToString)
+                    StopUpdating = True
+                    Spielers(who).Bereit = True
+                    PostChat(Spielers(who).Name & " left!", Color.White)
+                    PostChat("The game is being suspended!", Color.White)
                 Case "c"c 'Sent chat message
                     Dim source As Integer = CInt(element(1).ToString)
                     PostChat("[" & Spielers(source).Name & "]: " & element.Substring(2), playcolor(source))
@@ -387,6 +394,12 @@ Public Class SlaveWindow
                     Else
                         Status = SpielStatus.Waitn
                     End If
+                Case "r"c 'Player returned
+                    Dim source As Integer = CInt(element(1).ToString)
+                    Spielers(source).Bereit = True
+                    PostChat(Spielers(source).Name & " is back!", Color.White)
+                    HUDInstructions.Text = "Welcome back!"
+                    StopUpdating = False
                 Case "s"c 'Create transition
                     Dim playr As Integer = CInt(element(1).ToString)
                     Dim figur As Integer = CInt(element(2).ToString)
@@ -411,14 +424,18 @@ Public Class SlaveWindow
     End Sub
 
     Friend Sub SendArrived()
-        LocalClient.WriteStream("a" & My.Settings.Username)
+        If Rejoin Then
+            LocalClient.WriteStream("r")
+        Else
+            LocalClient.WriteStream("a" & My.Settings.Username)
+        End If
     End Sub
 
     Private Sub SendChatMessage(text As String)
         LocalClient.WriteStream("c" & text)
     End Sub
     Private Sub SendGameClosed()
-        LocalClient.WriteStream("l")
+        LocalClient.WriteStream("e")
     End Sub
 
     Private Sub SubmitResults(figur As Integer, destination As Integer)
@@ -437,7 +454,7 @@ Public Class SlaveWindow
         Dim homebase As Integer = GetHomebaseIndex(SpielerIndex) 'Eine Spielfigur-ID, die sich in der Homebase befindet(-1, falls Homebase leer ist)
         Dim startfd As Boolean = IsFieldCoveredByOwnFigure(SpielerIndex, 0) 'Ob das Start-Feld blockiert ist
         ShowDice = False
-        Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0)) 'Setzt die Anzahl der zu fahrenden Felder im voraus(kann im Fall einer vollen Homebase überschrieben werden)
+        Fahrzahl = GetNormalDiceSum() 'Setzt die Anzahl der zu fahrenden Felder im voraus(kann im Fall einer vollen Homebase überschrieben werden)
 
         If Is6InDiceList() And homebase > -1 And Not startfd Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
             'Bereite das Homebase-verlassen vor
@@ -459,7 +476,6 @@ Public Class SlaveWindow
             End If
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then 'Gibt an, dass das Start-Feld von einer eigenen Figur belegt ist(welche nicht gekickt werden kann) und dass selbst beim Wurf einer 6 keine weitere Figur die Homebase verlassen kann
             HUDInstructions.Text = "Start field blocked! Move pieces out of the way first!"
-            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
 
 
 
@@ -493,7 +509,6 @@ Public Class SlaveWindow
                                                     End Sub))
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
             'TODO: Add code for handling normal dice rolls and movement, as well as kicking
-            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
 
@@ -524,6 +539,14 @@ Public Class SlaveWindow
         Next
         Return -1
     End Function
+    Private Function GetNormalDiceSum() As Integer
+        Dim sum As Integer = 0
+        For i As Integer = 0 To WürfelWerte.Length - 1
+            sum += WürfelWerte(i)
+            If WürfelWerte(i) <> 6 Then Exit For
+        Next
+        Return sum
+    End Function
 
     Private Function CanDoAMove() As Boolean
         Dim pl As Player = Spielers(SpielerIndex)
@@ -534,18 +557,29 @@ Public Class SlaveWindow
         For i As Integer = 0 To 3
             defaultmov = pl.Spielfiguren(i)
             'Prüfe ob Zug mit dieser Figur möglich ist(Nicht in homebase, nicht über Ziel hinaus und Zielfeld nicht mit eigener Figur belegt
-            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
         Next
 
         'Prüfe ob Zug möglich
         Return ichmagzüge.Count > 0
     End Function
 
+    Private Function IsÜberholingInSeHaus(defaultmov As Integer) As Boolean
+        If defaultmov + Fahrzahl < 40 Then Return False
+
+        For i As Integer = defaultmov + 1 To defaultmov + Fahrzahl
+            If IsFieldCovered(SpielerIndex, -1, i) And i >= 40 Then Return True
+        Next
+
+        Return False
+    End Function
+
     Private Function GetFieldID(player As Integer, field As Integer) As (Integer, Integer)
         Dim fa As Integer = PlayerFieldToGlobalField(field, player)
         For j As Integer = 0 To 3
             For i As Integer = 0 To 3
-                If fa = PlayerFieldToGlobalField(Spielers(j).Spielfiguren(i), j) Then Return (j, i)
+                Dim fieldB As Integer = Spielers(j).Spielfiguren(i)
+                If fieldB > 0 And fieldB < 40 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
             Next
         Next
         Return (-1, -1)
@@ -569,7 +603,7 @@ Public Class SlaveWindow
     End Function
 
     Private Function IsFieldCovered(player As Integer, figur As Integer, fieldA As Integer) As Boolean
-        If fieldA < 0 Or fieldA > 40 Then Return False
+        If fieldA < 0 Then Return False
 
         Dim fa As Integer = PlayerFieldToGlobalField(fieldA, player)
         For i As Integer = 0 To 3
@@ -579,11 +613,28 @@ Public Class SlaveWindow
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And fieldB < 41 And (player <> i Or figur <> j) And fb = fa Then Return True
+                If fieldB > -1 And ((fieldA < 40 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
             Next
         Next
 
         Return False
+    End Function
+
+    'Prüft, ob man dreimal würfeln darf
+    Private Function CanRollThrice(player As Integer) As Boolean
+        Dim fieldlst As New List(Of Integer)
+        For i As Integer = 0 To 3
+            Dim tm As Integer = Spielers(player).Spielfiguren(i)
+            If tm >= 0 And tm < 40 Then Return False 'Falls sich Spieler auf dem Spielfeld befindet, ist dreimal würfeln unmöglich
+            If tm > 39 Then fieldlst.Add(tm) 'Merke FIguren, die sich im Haus befinden
+        Next
+
+        'Wenn nicht alle FIguren bis an den Anschlag gefahren wurden, darf man nicht dreifach würfeln
+        For i As Integer = 43 To (43 - fieldlst.Count + 1) Step -1
+            If Not fieldlst.Contains(i) Then Return False
+        Next
+
+        Return True
     End Function
 
     Private Function IsFieldCoveredByOwnFigure(player As Integer, field As Integer) As Boolean
@@ -708,7 +759,7 @@ Public Class SlaveWindow
         ShowDice = True
         StopUpdating = False
         HUDInstructions.Text = "Roll the Dice!"
-        DreifachWürfeln = GetHomebaseCount(SpielerIndex) = 4 'Falls noch alle Figuren un der Homebase sind
+        DreifachWürfeln = CanRollThrice(SpielerIndex) 'Falls noch alle Figuren un der Homebase sind
         WürfelTimer = 0
         ReDim WürfelWerte(3)
         For i As Integer = 0 To WürfelWerte.Length - 1
@@ -751,7 +802,7 @@ Public Class SlaveWindow
     End Sub
 
     Private Sub AngerButton() Handles HUDBtnC.Clicked
-        If Status = SpielStatus.Würfel Then
+        If Status = SpielStatus.Würfel And Not StopUpdating Then
             StopUpdating = True
             Microsoft.VisualBasic.MsgBox("You get angry, because you suck at this game.", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
             If Microsoft.VisualBasic.MsgBox("You are granted a single Joker. Do you want to utilize it now?", Microsoft.VisualBasic.MsgBoxStyle.YesNo, "You suck!") = Microsoft.VisualBasic.MsgBoxResult.Yes Then
@@ -771,6 +822,7 @@ Public Class SlaveWindow
                     Microsoft.VisualBasic.MsgBox("Alright, then don't.", "You suck!")
                 End Try
             End If
+            StopUpdating = False
         Else
             SFX(0).Play()
         End If

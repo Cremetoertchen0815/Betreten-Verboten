@@ -231,6 +231,7 @@ Public Class GameRoom
             If Not PlayStompSound Then SFX(2).Play()
             SwitchPlayer()
         End If
+
     End Sub
 
     Friend Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2 Implements IGameWindow.GetSpielfeldVector
@@ -239,14 +240,11 @@ Public Class GameRoom
         Select Case chr
             Case -1 'Zeichne Figur in Homebase
                 Return Vector2.Transform(GetSpielfeldPositionen(figur), transmatrices(player))
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(figur), transmatrices(player)), playcolor(player))
             Case 40, 41, 42, 43 'Zeichne Figur in Haus
                 Return Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(player))
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(chr - 26), transmatrices(player)), Color)
             Case Else 'Zeichne Figur auf Feld
                 Dim matrx As Matrix = transmatrices((player + Math.Floor(chr / 10)) Mod 4)
                 Return Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx)
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen((chr Mod 10) + 4), matrx), Color)
         End Select
     End Function
 
@@ -292,7 +290,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = 5 : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -309,7 +307,7 @@ Public Class GameRoom
                                                                                                     WürfelWerte(it) = WürfelAktuelleZahl
                                                                                                     StopUpdating = False
                                                                                                     'Prüfe, ob Würfeln beendet werden soll
-                                                                                                    If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And Not (it = 0 And WürfelAktuelleZahl >= 6)) Or (DreifachWürfeln And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
+                                                                                                    If it >= WürfelWerte.Length - 1 Or (Not DreifachWürfeln And WürfelAktuelleZahl < 6) Or ((DreifachWürfeln Or GetHomebaseCount(SpielerIndex) > 0) And it > 0 AndAlso WürfelWerte(it - 1) >= 6) Or (DreifachWürfeln And it >= 2 And WürfelWerte(2) < 6) Then CalcMoves()
                                                                                                     WürfelAktuelleZahl = 0
                                                                                                 End Sub))
 
@@ -356,7 +354,7 @@ Public Class GameRoom
 
                                 'Prüfe Figur nach Mouse-Klick
                                 If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
-                                    If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Then
+                                    If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Or IsÜberholingInSeHaus(defaultmov) Then
                                         HUDInstructions.Text = "Incorrect move!"
                                     Else
                                         'Move camera
@@ -388,7 +386,7 @@ Public Class GameRoom
                                         Dim defaultmov As Integer
                                         For i As Integer = 0 To 3
                                             defaultmov = pl.Spielfiguren(i)
-                                            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+                                            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
                                         Next
 
                                         'Prüfe ob Zug möglich
@@ -484,8 +482,19 @@ Public Class GameRoom
                     Dim text As String = element.Substring(2)
                     PostChat("[" & Spielers(source).Name & "]: " & text, playcolor(source))
                     SendChatMessage(source, text)
+                Case "e"c 'Suspend gaem
+                    StopUpdating = True
+                    PostChat(Spielers(source).Name & " left!", Color.White)
+                    PostChat("The game is being suspended!", Color.White)
+                    SendPlayerLeft(source)
                 Case "n"c
                     SwitchPlayer()
+                Case "r"c 'Player is back
+                    Spielers(source).Bereit = True
+                    PostChat(Spielers(source).Name & " is back!", Color.White)
+                    SendPlayerBack(source)
+                    StopUpdating = False
+                    If SpielerIndex = source Then SendNewPlayerActive(SpielerIndex)
                 Case "s"c
                     Dim figur As Integer = CInt(element(2).ToString)
                     Dim destination As Integer = CInt(element.Substring(3).ToString)
@@ -501,6 +510,12 @@ Public Class GameRoom
 
     Private Sub SendPlayerArrived(index As Integer, name As String)
         SendNetworkMessageToAll("a" & index.ToString & name)
+    End Sub
+    Private Sub SendPlayerBack(index As Integer)
+        SendNetworkMessageToAll("r" & index.ToString)
+    End Sub
+    Private Sub SendPlayerLeft(index As Integer)
+        LocalClient.WriteStream("e" & index)
     End Sub
 
     Private Sub SendBeginGaem()
@@ -538,7 +553,7 @@ Public Class GameRoom
         Dim homebase As Integer = GetHomebaseIndex(SpielerIndex) 'Eine Spielfigur-ID, die sich in der Homebase befindet(-1, falls Homebase leer ist)
         Dim startfd As Boolean = IsFieldCoveredByOwnFigure(SpielerIndex, 0) 'Ob das Start-Feld blockiert ist
         ShowDice = False
-        Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0)) 'Setzt die Anzahl der zu fahrenden Felder im voraus(kann im Fall einer vollen Homebase überschrieben werden)
+        Fahrzahl = GetNormalDiceSum() 'Setzt die Anzahl der zu fahrenden Felder im voraus(kann im Fall einer vollen Homebase überschrieben werden)
 
         If Is6InDiceList() And homebase > -1 And Not startfd Then 'Falls Homebase noch eine Figur enthält und 6 gewürfelt wurde, setze Figur auf Feld 0 und fahre anschließend x Felder nach vorne
             'Bereite das Homebase-verlassen vor
@@ -561,7 +576,6 @@ Public Class GameRoom
             End If
         ElseIf Is6InDiceList() And homebase > -1 And startfd Then 'Gibt an, dass das Start-Feld von einer eigenen Figur belegt ist(welche nicht gekickt werden kann) und dass selbst beim Wurf einer 6 keine weitere Figur die Homebase verlassen kann
             HUDInstructions.Text = "Start field blocked! Move pieces out of the way first!"
-            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
 
             If IsFutureFieldCoveredByOwnFigure(SpielerIndex, 0, -1) AndAlso Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, Fahrzahl, -1) Then 'Spieler auf dem Start-Feld muss wenn mögl.  bewegt werden
                 homebase = GetFieldID(SpielerIndex, 0).Item2
@@ -591,7 +605,6 @@ Public Class GameRoom
                                                     End Sub))
         Else 'Ansonsten fahre x Felder nach vorne mit der Figur, die anschließend ausgewählt wird
             'TODO: Add code for handling normal dice rolls and movement, as well as kicking
-            Fahrzahl = If(WürfelWerte(0) = 6, WürfelWerte(0) + WürfelWerte(1), WürfelWerte(0))
             HUDInstructions.Text = "Select piece to be moved " & Fahrzahl & " spaces!"
             Status = SpielStatus.WähleFigur
 
@@ -623,6 +636,15 @@ Public Class GameRoom
         Return -1
     End Function
 
+    Private Function GetNormalDiceSum() As Integer
+        Dim sum As Integer = 0
+        For i As Integer = 0 To WürfelWerte.Length - 1
+            sum += WürfelWerte(i)
+            If WürfelWerte(i) <> 6 Then Exit For
+        Next
+        Return sum
+    End Function
+
     Private Function CheckWin() As Integer
         For i As Integer = 0 To 3
             Dim pl As Player = Spielers(i)
@@ -644,15 +666,25 @@ Public Class GameRoom
         For i As Integer = 0 To 3
             defaultmov = pl.Spielfiguren(i)
             'Prüfe ob Zug mit dieser Figur möglich ist(Nicht in homebase, nicht über Ziel hinaus und Zielfeld nicht mit eigener Figur belegt
-            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
         Next
 
         'Prüfe ob Zug möglich
         Return ichmagzüge.Count > 0
     End Function
 
+    Private Function IsÜberholingInSeHaus(defaultmov As Integer) As Boolean
+        If defaultmov + Fahrzahl < 40 Then Return False
+
+        For i As Integer = defaultmov + 1 To defaultmov + Fahrzahl
+            If IsFieldCovered(SpielerIndex, -1, i) And i >= 40 Then Return True
+        Next
+
+        Return False
+    End Function
+
     Private Function IsFieldCovered(player As Integer, figur As Integer, fieldA As Integer) As Boolean
-        If fieldA < 0 Or fieldA >= 40 Then Return False
+        If fieldA < 0 Then Return False
 
         Dim fa As Integer = PlayerFieldToGlobalField(fieldA, player)
         For i As Integer = 0 To 3
@@ -662,7 +694,7 @@ Public Class GameRoom
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And fieldB < 40 And (player <> i Or figur <> j) And fb = fa Then Return True
+                If fieldB > -1 And ((fieldA < 40 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
             Next
         Next
 
@@ -674,10 +706,27 @@ Public Class GameRoom
         For j As Integer = 0 To 3
             For i As Integer = 0 To 3
                 Dim fieldB As Integer = Spielers(j).Spielfiguren(i)
-                If fieldB > 0 And field < 40 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
+                If fieldB > 0 And fieldB < 40 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
             Next
         Next
         Return (-1, -1)
+    End Function
+
+    'Prüft, ob man dreimal würfeln darf
+    Private Function CanRollThrice(player As Integer) As Boolean
+        Dim fieldlst As New List(Of Integer)
+        For i As Integer = 0 To 3
+            Dim tm As Integer = Spielers(player).Spielfiguren(i)
+            If tm >= 0 And tm < 40 Then Return False 'Falls sich Spieler auf dem Spielfeld befindet, ist dreimal würfeln unmöglich
+            If tm > 39 Then fieldlst.Add(tm) 'Merke FIguren, die sich im Haus befinden
+        Next
+
+        'Wenn nicht alle FIguren bis an den Anschlag gefahren wurden, darf man nicht dreifach würfeln
+        For i As Integer = 43 To (43 - fieldlst.Count + 1) Step -1
+            If Not fieldlst.Contains(i) Then Return False
+        Next
+
+        Return True
     End Function
 
     Private Function IsFieldCoveredByOwnFigure(player As Integer, field As Integer) As Boolean
@@ -798,6 +847,9 @@ Public Class GameRoom
     Private Sub SwitchPlayer()
         'Setze benötigte Flags
         SpielerIndex = (SpielerIndex + 1) Mod 4
+        Do While Spielers(SpielerIndex).Typ = SpielerTyp.None
+            SpielerIndex = (SpielerIndex + 1) Mod 4
+        Loop
         HUDBtnC.Active = Not JokerListe.Contains(SpielerIndex)
         If Spielers(SpielerIndex).Typ <> SpielerTyp.Online Then Status = SpielStatus.Würfel Else Status = SpielStatus.Waitn
         SendNewPlayerActive(SpielerIndex)
@@ -805,9 +857,9 @@ Public Class GameRoom
         ShowDice = True
         StopUpdating = False
         HUDInstructions.Text = "Roll the Dice!"
-        DreifachWürfeln = GetHomebaseCount(SpielerIndex) = 4 'Falls noch alle Figuren un der Homebase sind
+        DreifachWürfeln = CanRollThrice(SpielerIndex) 'Falls noch alle Figuren un der Homebase sind
         WürfelTimer = 0
-        ReDim WürfelWerte(3)
+        ReDim WürfelWerte(5)
         For i As Integer = 0 To WürfelWerte.Length - 1
             WürfelWerte(i) = 0
         Next
@@ -850,7 +902,7 @@ Public Class GameRoom
         End If
     End Sub
     Private Sub AngerButton() Handles HUDBtnC.Clicked
-        If Status = SpielStatus.Würfel Then
+        If Status = SpielStatus.Würfel And Not StopUpdating Then
             StopUpdating = True
             Microsoft.VisualBasic.MsgBox("You get angry, because you suck at this game.", Microsoft.VisualBasic.MsgBoxStyle.OkOnly, "You suck!")
             If Microsoft.VisualBasic.MsgBox("You are granted a single Joker. Do you want to utilize it now?", Microsoft.VisualBasic.MsgBoxStyle.YesNo, "You suck!") = Microsoft.VisualBasic.MsgBoxResult.Yes Then

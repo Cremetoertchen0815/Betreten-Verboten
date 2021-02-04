@@ -12,5 +12,12 @@
             Next
             Return cnt
         End Function
+        Public Function GetOnlinePlayerCount() As Integer
+            Dim cnt As Integer = 0
+            For Each element In Players
+                If element IsNot Nothing Then cnt += 1
+            Next
+            Return cnt
+        End Function
     End Class
 End Namespace

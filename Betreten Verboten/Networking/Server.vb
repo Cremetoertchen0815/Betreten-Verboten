@@ -47,7 +47,7 @@ Namespace Networking
                         c.streamw = New StreamWriter(c.stream) With {.AutoFlush = True}
                         list.Add(c) ' und fügen sie der liste der clients hinzu.
                         ' falls alle anderen das auch lesen sollen können, an alle clients weiterleiten. siehe SendToAllClients
-                        Dim t As New Threading.Thread(AddressOf ListenToConnection)
+                        Dim t As New Thread(AddressOf ListenToConnection)
                         t.Start(c)
                     Catch
                     End Try
@@ -76,7 +76,7 @@ Namespace Networking
                 If Not ReadString(con) = "Wassup?" Then Exit Try
                 WriteString(con, "What's your name?")
                 Dim tmpusr As String = ReadString(con)
-                If AlreadyContainsNickname(tmpusr) And False Then WriteString(con, "Sorry m8! Username already taken") : Exit Try
+                If AlreadyContainsNickname(tmpusr) Then WriteString(con, "Sorry m8! Username already taken") : Exit Try
                 con.nick = tmpusr
                 WriteString(con, "Alrighty!")
 
@@ -96,17 +96,42 @@ Namespace Networking
                             Try
                                 Dim id As Integer = CInt(ReadString(con))
                                 Dim gaem As Game = games(id)
-                                If gaem.GetPlayerCount >= 4 Then Throw New NotImplementedException
                                 Dim index As Integer = -1
-                                For i As Integer = 0 To 3
-                                    If gaem.Players(i) Is Nothing Then index = i : Exit For
-                                Next
-                                If index = -1 Then Throw New NotImplementedException
-                                gaem.Players(index) = New Player(SpielerTyp.Online) With {.Bereit = False, .Connection = con, .Name = con.nick}
-                                WriteString(con, index)
-                                For i As Integer = 0 To 3
-                                    If gaem.Players(i) IsNot Nothing Then WriteString(con, gaem.Players(i).Name) Else WriteString(con, "")
-                                Next
+                                If gaem.GetOnlinePlayerCount >= 4 Then
+                                    If IsRejoining(gaem, con.nick, index) Then
+                                        'Is Rejoining
+                                        If index = -1 Then Throw New NotImplementedException
+                                        WriteString(con, index)
+                                        For i As Integer = 0 To 3
+                                            WriteString(con, gaem.Players(i).Name)
+                                        Next
+                                        gaem.Players(index).Connection = con
+
+                                        WriteString(con, "Rejoin")
+
+                                        For i As Integer = 0 To 3
+                                            For j As Integer = 0 To 3
+                                                WriteString(con, gaem.Players(i).Spielfiguren(j).ToString)
+                                            Next
+                                        Next
+                                    Else
+                                        Throw New NotImplementedException
+                                    End If
+                                Else
+                                    'Is joining from scratch
+                                    For i As Integer = 0 To 3
+                                        If gaem.Players(i) Is Nothing Then index = i : Exit For
+                                    Next
+                                    If index = -1 Then Throw New NotImplementedException
+                                    gaem.Players(index) = New Player(SpielerTyp.Online) With {.Bereit = False, .Connection = con, .Name = con.nick}
+                                    WriteString(con, index)
+                                    For i As Integer = 0 To 3
+                                        If gaem.Players(i) IsNot Nothing Then WriteString(con, gaem.Players(i).Name) Else WriteString(con, "")
+                                    Next
+                                    WriteString(con, "Nujoin")
+                                End If
+
+                                'Check if rejoining
                                 If ReadString(con) <> "Okidoki!" Then Throw New NotImplementedException
                                 WriteString(con, "LET'S HAVE A BLAST!")
                                 gaem.Players(index).Bereit = True
@@ -129,6 +154,8 @@ Namespace Networking
                                         Case SpielerTyp.CPU
                                             Dim name As String = ReadString(con)
                                             nugaem.Players(i) = New Player(types(i)) With {.Name = name, .Bereit = True}
+                                        Case SpielerTyp.None
+                                            nugaem.Players(i) = New Player(types(i)) With {.Bereit = True}
                                     End Select
                                 Next
                                 If ReadString(con) <> "Okidoki!" Then Throw New NotImplementedException
@@ -156,10 +183,19 @@ Namespace Networking
 
         End Sub
 
+        Private Function IsRejoining(gaem As Game, nick As String, ByRef index As Integer) As Boolean
+            If gaem Is Nothing Then Return False
+            For i As Integer = 0 To gaem.Players.Length - 1
+                If gaem.Players(i).Name = nick Then index = i : Return True
+            Next
+            Return False
+        End Function
+
+
         Private Function ReadString(con As Connection) As String
             Dim tmp As String = con.streamr.ReadLine
             Console.WriteLine("[I]" & tmp)
-            If tmp = "I'm outta here!" Then Throw New SocketException("Client disconnected!")
+            If tmp = "I'm outta here!" Then Throw New Exception("Client disconnected!")
             Return tmp
         End Function
 
@@ -170,16 +206,16 @@ Namespace Networking
 
         Private Sub EnterJoinMode(con As Connection, gaem As Game, index As Integer)
             Try
-                Do Until gaem.Ended
+                Dim break As Boolean = False
+                Do Until gaem.Ended Or break
                     Dim txt As String = ReadString(con)
-                    If txt(0) = "l"c Then
-                        SendToAllGameClients(gaem)
-                        Exit Try
-                    End If
                     If gaem.HostConnection IsNot Nothing Then WriteString(gaem.HostConnection, index.ToString & txt)
+                    If txt = "e" Then break = True
                 Loop
             Catch ex As Exception
-                SendToAllGameClients(gaem)
+                gaem.Players(index).Bereit = False
+                gaem.Players(index).Connection = Nothing
+                If gaem.HostConnection IsNot Nothing Then WriteString(gaem.HostConnection, index.ToString & "e") 'If connection was interrupted, send to host that connection was interrupted and halt game
             End Try
         End Sub
 
@@ -187,17 +223,29 @@ Namespace Networking
             Try
                 Do Until gaem.Ended
                     Dim nl As String = ReadString(con)
-                    If nl(0) = "b"c And games.ContainsKey(gaem.Key) Then games.Remove(gaem.Key)
-                    If nl(0) = "l"c Or nl = "Ich putz hier mal durch." Then
-                        SendToAllGameClients(gaem)
-                        gaem.HostConnection = Nothing
-                        Exit Try
-                    End If
-                    For i As Integer = 1 To 3
-                        With gaem.Players(i)
-                            If gaem.Players(i) IsNot Nothing AndAlso .Typ = SpielerTyp.Online AndAlso .Connection IsNot Nothing Then WriteString(.Connection, nl)
-                        End With
-                    Next
+                    Select Case nl(0)
+                        Case "b"c
+                            'If host sends that the game shall begin, unlist round
+                            If games.ContainsKey(gaem.Key) Then games.Remove(gaem.Key)
+                        Case "l"c, "I"c
+                            'If host lost connection, end game for everyone
+                            SendToAllGameClients(gaem)
+                            gaem.HostConnection = Nothing
+                            Exit Try
+                        Case "e"c
+                            'If remote client lost connection, send to all other remotes and add relist game
+                            Dim who As Integer = CInt(nl(1).ToString)
+                            gaem.Players(who).Bereit = False
+                            If Not games.ContainsKey(gaem.Key) Then games.Add(gaem.Key, gaem)
+
+                            For i As Integer = 1 To 3
+                                If gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Typ = SpielerTyp.Online AndAlso gaem.Players(i).Connection IsNot Nothing Then WriteString(gaem.Players(i).Connection, nl)
+                            Next
+                        Case Else
+                            For i As Integer = 1 To 3
+                                If gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Typ = SpielerTyp.Online AndAlso gaem.Players(i).Connection IsNot Nothing Then WriteString(gaem.Players(i).Connection, nl)
+                            Next
+                    End Select
                 Loop
             Catch ex As Exception
                 SendToAllGameClients(gaem)
@@ -211,12 +259,10 @@ Namespace Networking
                 Dim takenconnections As New List(Of Connection)
                 For i As Integer = 0 To 3
                     Try
-                        With gaem.Players(i)
-                            If gaem IsNot Nothing AndAlso gaem.Players(i) IsNot Nothing AndAlso .Connection IsNot Nothing And Not takenconnections.Contains(.Connection) Then
-                                WriteString(.Connection, "Understandable, have a nice day!")
-                                takenconnections.Add(.Connection)
-                            End If
-                        End With
+                        If gaem IsNot Nothing AndAlso gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Connection IsNot Nothing AndAlso Not takenconnections.Contains(gaem.Players(i).Connection) Then
+                            WriteString(gaem.Players(i).Connection, "Understandable, have a nice day!")
+                            takenconnections.Add(gaem.Players(i).Connection)
+                        End If
                     Catch
                     End Try
                 Next

@@ -129,7 +129,7 @@ Public Class GameInstance
     End Sub
 
     Protected Overrides Sub Update(ByVal gameTime As GameTime)
-        Dim mstate As MouseState = Mouse.GetState()
+        Dim mstate As MouseState = If(Me.IsActive, Mouse.GetState(), New MouseState)
         Dim kstate As KeyboardState = Keyboard.GetState()
         Dim mpos As Point = Vector2.Transform(mstate.Position.ToVector2, Matrix.Invert(ScaleMatrix)).ToPoint
         Dim OneshotPressed As Boolean = mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released
@@ -180,9 +180,9 @@ Public Class GameInstance
                         End If
                     Case 1
                         If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2 : SFX(2).Play()
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
-                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 3, 2) : SFX(2).Play()
+                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
+                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
                         If New Rectangle(560, 900, 400, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         If New Rectangle(960, 900, 400, 100).Contains(mpos) And OneshotPressed Then
                             SFX(2).Play()
@@ -199,7 +199,7 @@ Public Class GameInstance
                         If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         SelectedOnlineGaemIndex = Math.Min(Math.Max(SelectedOnlineGaemIndex, 0), OnlineGameInstances.Length - 1)
                     Case 3
-                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then If Not IsConnectedToServer Then OpenInputbox("Enter IP-adress:", "Open server", Sub(x) LocalClient.Connect(x, My.Settings.Username), "127.0.0.1") : SFX(2).Play() Else SFX(0).Play()
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then If Not IsConnectedToServer Then OpenInputbox("Enter IP-adress:", "Open server", Sub(x) LocalClient.Connect(x, My.Settings.Username), My.Settings.IP) : SFX(2).Play() Else SFX(0).Play()
                         If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then If IsConnectedToServer Then LocalClient.Disconnect() : SFX(2).Play() Else SFX(0).Play()
                         If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then
                             If Not ServerActive Then
@@ -269,6 +269,8 @@ Public Class GameInstance
                     AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.CPU, My.Settings.Schwierigkeitsgrad) With {.Name = "CPU " & (i + 1).ToString}
                 Case SpielerTyp.Online
                     AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Online, My.Settings.Schwierigkeitsgrad) With {.Bereit = False}
+                Case SpielerTyp.None
+                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.None, My.Settings.Schwierigkeitsgrad) With {.Bereit = True}
             End Select
         Next
         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
@@ -390,6 +392,8 @@ Public Class GameInstance
         SFX(2).Play()
         'Bereite Submenu vor
         Select Case submenu
+            Case 0
+                BlockOnlineJoin = False
             Case 1
                 NewGamePlayers = {SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local}
         End Select
@@ -405,22 +409,21 @@ Public Class GameInstance
         Automator.Add(Schwarzblende)
     End Sub
 
+    Dim BlockOnlineJoin As Boolean = False
     Private Sub OpenGaemViaNetwork(ins As OnlineGameInstance)
+        If BlockOnlineJoin Then Return
         Try
-            Dim index As Integer
-            Dim names As String() = New String(3) {}
-            If Not LocalClient.JoinGame(ins.Key, index, names) Then Return
-
-
+            BlockOnlineJoin = True
             LocalClient.AutomaticRefresh = False
             AktuellerSlave = New SlaveWindow
             AktuellerSlave.LoadContent()
             AktuellerSlave.Init()
+
+            Dim index As Integer
+            If Not LocalClient.JoinGame(ins.Key, index, AktuellerSlave.Spielers, AktuellerSlave.Rejoin) Then Return
+
+
             AktuellerSlave.UserIndex = index
-            AktuellerSlave.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
-            For i As Integer = 0 To 3
-                AktuellerSlave.Spielers(i) = New Player(SpielerTyp.Online) With {.Name = If(i = index, My.Settings.Username, names(i))}
-            Next
             Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
                                                                                                                                             InGame = True
                                                                                                                                             InSlave = True

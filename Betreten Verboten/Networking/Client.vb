@@ -9,15 +9,7 @@ Namespace Networking
         Public Property Hostname As String
         Public Property IsHost As Boolean
         Public Property LeaveFlag As Boolean = False
-
-        Public Property AutomaticRefresh As Boolean
-            Get
-                Return _AutomaticRefresh
-            End Get
-            Set(value As Boolean)
-                _AutomaticRefresh = value
-            End Set
-        End Property
+        Public Property AutomaticRefresh As Boolean = True
 
         Private stream As NetworkStream
         Private streamw As StreamWriter
@@ -26,10 +18,12 @@ Namespace Networking
         Private blastmode As Boolean
         Private listener As Thread
         Private data As New List(Of String)
-        Private _AutomaticRefresh As Boolean = True
+
         Public Sub Connect(hostname As String, nickname As String)
 
             Try
+                My.Settings.IP = hostname
+                My.Settings.Save()
                 client = New TcpClient
                 client.Connect(hostname, 187) ' hier die ip des servers eintragen. 
 
@@ -80,6 +74,7 @@ Namespace Networking
             End If
 
             Connected = False
+            blastmode = False
         End Sub
 
         Private Function ReadString() As String
@@ -114,7 +109,7 @@ Namespace Networking
         End Function
 
         Friend Sub WriteStream(msg As String)
-            If msg(0) = "l"c And IsHost Then blastmode = False
+            If (msg(0) = "l"c And IsHost) Or (msg(0) = "e"c And Not IsHost) Then blastmode = False
             If Connected Then WriteString(msg)
         End Sub
 
@@ -158,18 +153,33 @@ Namespace Networking
             End Try
         End Function
 
-        Public Function JoinGame(id As Integer, ByRef index As Integer, ByRef names As String()) As Boolean
+        Public Function JoinGame(id As Integer, ByRef index As Integer, ByRef Spielers As Player(), ByRef Rejoin As Boolean) As Boolean
             'Kein Zugriff auf diese Daten wenn in Blastmodus oder Verbindung getrennt
             If blastmode Or Not Connected Then Return False
+            blastmode = True
 
             WriteString("join")
             WriteString(id)
+
             index = CInt(ReadString())
             For i As Integer = 0 To 3
-                names(i) = ReadString()
+                Dim str As String = ReadString()
+                Spielers(i) = New Player(SpielerTyp.Online) With {.Name = If(i = index, My.Settings.Username, str)}
             Next
+
+            Dim here As String = ReadString()
+            Rejoin = here = "Rejoin"
+            If Rejoin Then
+                For i As Integer = 0 To 3
+                    For j As Integer = 0 To 3
+                        Spielers(i).Spielfiguren(j) = CInt(ReadString())
+                    Next
+                Next
+            End If
+
             WriteString("Okidoki!")
-            If ReadString() <> "LET'S HAVE A BLAST!" Then Return False
+            Dim tmp As String = ReadString()
+            If tmp <> "LET'S HAVE A BLAST!" Then blastmode = False : Return False
             blastmode = True
             LeaveFlag = False
             data.Clear()
@@ -186,7 +196,7 @@ Namespace Networking
             WriteString(name)
             For i As Integer = 0 To 3
                 WriteString(CInt(types(i).Typ).ToString)
-                If types(i).Typ <> SpielerTyp.Online Then WriteString(types(i).Name)
+                If types(i).Typ <> SpielerTyp.Online And types(i).Typ <> SpielerTyp.None Then WriteString(types(i).Name)
             Next
             WriteString("Okidoki!")
             Dim rdl As String = ReadString()
@@ -204,10 +214,10 @@ Namespace Networking
                 While blastmode And Not LeaveFlag
                     Dim tmp As String = ReadString()
                     If tmp.StartsWith("Sorry m8!") Then Throw New Exception() Else data.Add(tmp)
-                    If tmp = "Understandable, have a nice day!" Then LeaveFlag = True : Exit While
-                End While
-            Catch ex As Exception
-                WriteErrorToFile(ex)
+                    If tmp.StartsWith("Understandable, have a nice day!") Then LeaveFlag = True : Exit While
+                    End While
+                    Catch ex As Exception
+                    WriteErrorToFile(ex)
                 Disconnect()
             End Try
             blastmode = False

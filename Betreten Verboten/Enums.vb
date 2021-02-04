@@ -1,7 +1,8 @@
 ﻿Public Enum SpielerTyp
     Local = 0
     CPU = 1
-    Online = 2
+    None = 2
+    Online = 3
 End Enum
 
 Public Enum SpielStatus
