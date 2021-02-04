@@ -167,15 +167,7 @@ Namespace Networking
                 Spielers(i) = New Player(SpielerTyp.Online) With {.Name = If(i = index, My.Settings.Username, str)}
             Next
 
-            Dim here As String = ReadString()
-            Rejoin = here = "Rejoin"
-            If Rejoin Then
-                For i As Integer = 0 To 3
-                    For j As Integer = 0 To 3
-                        Spielers(i).Spielfiguren(j) = CInt(ReadString())
-                    Next
-                Next
-            End If
+            Rejoin = ReadString() = "Rejoin"
 
             WriteString("Okidoki!")
             Dim tmp As String = ReadString()

@@ -399,6 +399,15 @@ Public Class SlaveWindow
                     Spielers(source).Bereit = True
                     PostChat(Spielers(source).Name & " is back!", Color.White)
                     HUDInstructions.Text = "Welcome back!"
+                    If UserIndex = source Then
+                        Dim str As String = element.Substring(2)
+                        Dim sp As Player() = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Player())(str)
+                        For i As Integer = 0 To 3
+                            For j As Integer = 0 To 3
+                                Spielers(i).Spielfiguren(j) = sp(i).Spielfiguren(j)
+                            Next
+                        Next
+                    End If
                     StopUpdating = False
                 Case "s"c 'Create transition
                     Dim playr As Integer = CInt(element(1).ToString)
@@ -591,14 +600,11 @@ Public Class SlaveWindow
         Select Case chr
             Case -1 'Zeichne Figur in Homebase
                 Return Vector2.Transform(GetSpielfeldPositionen(figur), transmatrices(player))
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(figur), transmatrices(player)), playcolor(player))
             Case 40, 41, 42, 43 'Zeichne Figur in Haus
                 Return Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(player))
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen(chr - 26), transmatrices(player)), Color)
             Case Else 'Zeichne Figur auf Feld
                 Dim matrx As Matrix = transmatrices((player + Math.Floor(chr / 10)) Mod 4)
                 Return Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx)
-                'DrawChr(Vector2.Transform(GameRoom.GetSpielfeldPositionen((chr Mod 10) + 4), matrx), Color)
         End Select
     End Function
 

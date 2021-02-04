@@ -106,14 +106,7 @@ Namespace Networking
                                             WriteString(con, gaem.Players(i).Name)
                                         Next
                                         gaem.Players(index).Connection = con
-
                                         WriteString(con, "Rejoin")
-
-                                        For i As Integer = 0 To 3
-                                            For j As Integer = 0 To 3
-                                                WriteString(con, gaem.Players(i).Spielfiguren(j).ToString)
-                                            Next
-                                        Next
                                     Else
                                         Throw New NotImplementedException
                                     End If

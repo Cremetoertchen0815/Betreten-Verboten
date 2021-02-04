@@ -512,7 +512,8 @@ Public Class GameRoom
         SendNetworkMessageToAll("a" & index.ToString & name)
     End Sub
     Private Sub SendPlayerBack(index As Integer)
-        SendNetworkMessageToAll("r" & index.ToString)
+        Dim str As String = Newtonsoft.Json.JsonConvert.SerializeObject(Spielers)
+        SendNetworkMessageToAll("r" & index.ToString & str)
     End Sub
     Private Sub SendPlayerLeft(index As Integer)
         LocalClient.WriteStream("e" & index)
