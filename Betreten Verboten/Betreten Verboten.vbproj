@@ -58,11 +58,6 @@
     <Compile Include="IGameWindow.vb" />
     <Compile Include="Renderer3D.vb" />
     <Compile Include="Enums.vb" />
-    <Compile Include="Framwork\Graphics\Particles\Emitter.vb" />
-    <Compile Include="Framwork\Graphics\Particles\Emitters\RainEmitter.vb" />
-    <Compile Include="Framwork\Graphics\Particles\Emitters\SnowEmitter.vb" />
-    <Compile Include="Framwork\Graphics\Particles\Emitters\SprinklerEmitter.vb" />
-    <Compile Include="Framwork\Graphics\Particles\Particle.vb" />
     <Compile Include="Framwork\Graphics\PostProcessing\BloomFilter.vb" />
     <Compile Include="Framwork\Graphics\Primitives2D.vb" />
     <Compile Include="Framwork\Graphics\QuadRenderer.vb" />
