@@ -1,11 +1,10 @@
-﻿Imports Microsoft.Xna.Framework
+﻿Imports System.Collections.Generic
+Imports Betreten_Verboten.Framework.Graphics
+Imports Betreten_Verboten.Framework.Tweening
+Imports Betreten_Verboten.Framework.UI
+Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
-Imports Betreten_Verboten.Framework.Graphics
-Imports Betreten_Verboten.Framework.UI
-Imports System.Collections.Generic
-Imports Betreten_Verboten.Framework.Tweening
-Imports Betreten_Verboten.Framework.Graphics.PostProcessing
 Imports Microsoft.Xna.Framework.Media
 
 ''' <summary>

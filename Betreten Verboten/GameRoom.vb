@@ -1,12 +1,10 @@
-﻿Imports Microsoft.Xna.Framework
+﻿Imports System.Collections.Generic
+Imports Betreten_Verboten.Framework.Graphics
+Imports Betreten_Verboten.Framework.Tweening
+Imports Betreten_Verboten.Framework.UI
+Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 Imports Microsoft.Xna.Framework.Input
-Imports Betreten_Verboten.Framework.Graphics
-Imports Betreten_Verboten.Framework.UI
-Imports System.Collections.Generic
-Imports Betreten_Verboten.Framework.Tweening
-Imports Betreten_Verboten.Framework.Graphics.PostProcessing
-Imports System.Linq
 Imports Microsoft.Xna.Framework.Media
 
 ''' <summary>
@@ -29,10 +27,9 @@ Public Class GameRoom
     Private StopUpdating As Boolean 'Deaktiviert die Spielelogik
     Private Fahrzahl As Integer 'Anzahl der Felder die gefahren werden kann
     Private DreifachWürfeln As Boolean 'Gibt an(am Anfang des Spiels), dass ma drei Versuche hat um eine 6 zu bekommen
-    Private lastmstate As MouseState
-    Private lastkstate As KeyboardState
-    Private ServerClosedManually As Boolean = False
-    Private JokerListe As New List(Of Integer)
+    Private lastmstate As MouseState 'Enthält den Status der Maus aus dem letzten Frame
+    Private lastkstate As KeyboardState 'Enthält den Status der Tastatur aus dem letzten Frame
+    Private JokerListe As New List(Of Integer) 'Gibt an, welche Spieler ihren Joker bereits eingelöst haben
 
     'Assets
     Friend Renderer As Renderer3D
@@ -60,20 +57,21 @@ Public Class GameRoom
 
     'Spielfeld
     Friend SelectFader As Transition(Of Single) 'Fader, welcher die zur Auswahl stehenden Figuren blinken lässt
-    Friend Feld As Rectangle
-    Private Center As Vector2
-    Friend transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)}
-    Friend playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange}
+    Friend Feld As Rectangle 'Gibt den Screen-Viewport des Spielfelds an
+    Private Center As Vector2 'Gibt den Mittelpunkt des Screen-Viewports des Spielfelds an
+    Friend transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)} 'Enthält Transform-Matritzen, welche die SPielfeld-Hitboxen um den Spielfeld-Mittelpunkt rotieren.
+    Friend playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange} 'Gibt die Farben der Spieler an
     Friend FigurFaderZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
-    Friend FigurFaderEnd As Single
-    Friend FigurFaderXY As Transition(Of Vector2)
-    Friend FigurFaderZ As Transition(Of Integer)
-    Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single))
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)}
-    Friend CPUTimer As Integer
-    Friend PlayStompSound As Boolean
-    Friend StdCam As New CamKeyframe(-30, -20, -50, 0, 0.75, 0)
+    Friend FigurFaderEnd As Single 'Gibt an auf welchem Feld der Zug enden soll
+    Friend FigurFaderXY As Transition(Of Vector2) 'Bewegt die zu animierende Figur auf der X- und Y-Achse
+    Friend FigurFaderZ As Transition(Of Integer)  'Bewegt die zu animierende Figur auf der Z-Achse
+    Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single)) 'Gibt die Skalierung für einzelne Figuren an Key: (Spieler ID, Figur ID) Value: Transition(Z)
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)} 'Bewegt die Kamera
+    Friend CPUTimer As Integer 'Timer-Flag um der CPU etwas "Überlegzeit" zu geben
+    Friend PlayStompSound As Boolean 'Gibt an, ob der Stampf-Sound beim Landen(Kicken) gespielt werden soll
+    Friend StdCam As New CamKeyframe(-30, -20, -50, 0, 0.75, 0) 'Gibt die Standard-Position der Kamera an
 
+    'Konstanten
     Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
     Private Const WürfelAnimationCooldown As Integer = 62
@@ -90,8 +88,6 @@ Public Class GameRoom
         WürfelTimer = 0
         LocalClient.LeaveFlag = False
         LocalClient.IsHost = True
-        'DEBUG: Setze sinnvolle Werte in Variablen ein, da das Menu noch nicht funktioniert.
-        Spielers = {New Player, New Player, New Player, New Player}
         Chat = New List(Of (String, Color))
         Status = SpielStatus.WarteAufOnlineSpieler
         SpielerIndex = -1
@@ -131,10 +127,17 @@ Public Class GameRoom
         SelectFader = New Transition(Of Single)(New TransitionTypes.TransitionType_EaseInEaseOut(400), 0F, 1.0F, Nothing) With {.Repeat = RepeatJob.Reverse} : Automator.Add(SelectFader)
     End Sub
 
+    ''' <summary>
+    ''' Zeichnet den Renderer vor
+    ''' </summary>
     Friend Sub PreDraw()
         Renderer.PreDraw()
     End Sub
 
+    ''' <summary>
+    ''' Zeichnet den Inhalt des Renderers, sowie die HUD auf den Bildschirm
+    ''' </summary>
+    ''' <param name="gameTime"></param>
     Friend Sub Draw(ByVal gameTime As GameTime)
 
         Renderer.Draw(gameTime)
@@ -162,92 +165,10 @@ Public Class GameRoom
         HUD.Draw(gameTime)
     End Sub
 
-    Private Sub DrawChr(vc As Vector2, color As Color)
-        FillRectangle(New Rectangle(vc.X - 10, vc.Y - 10, 20, 20), color)
-    End Sub
-
-    Private Function GetChrRect(vc As Vector2) As Rectangle
-        Return New Rectangle(vc.X - 20, vc.Y - 20, 40, 40)
-    End Function
-
-    Private Sub StartMoverSub(Optional destination As Integer = -1)
-        'Set values
-        FigurFaderEnd = If(destination < 0, Math.Max(Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2), 0) + Fahrzahl, destination)
-        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
-        Status = SpielStatus.FahreFelder
-        PlayStompSound = False
-
-        'Initiate
-        If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
-            Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
-            If (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1) Or (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1 = 0) Then
-                Dim kickID As Integer = CheckKick(1)
-                Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
-                                                                                                                              If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
-                                                                                                                              If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
-                                                                                                                              Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
-                                                                                                                              Automator.Add(transB)
-                                                                                                                              FigurFaderScales.Add(key, transB)
-                                                                                                                          End Sub)
-                If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
-            Else
-                Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Bounce(FigurSpeed * 2), 1, 0, Nothing)
-                If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
-            End If
-        End If
-        FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
-        FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
-    End Sub
-
-    Private Sub MoverSub()
-        Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) += 1
-
-        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
-
-        If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) < FigurFaderEnd Then
-            SFX(3).Play()
-            If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
-                Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
-                If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1 Then
-                    Dim kickID As Integer = CheckKick(1)
-                    PlayStompSound = True
-                    Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
-                                                                                                                                  SFX(4).Play()
-                                                                                                                                  If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
-                                                                                                                                  If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
-                                                                                                                                  Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
-                                                                                                                                  Automator.Add(transB)
-                                                                                                                                  FigurFaderScales.Add(key, transB)
-                                                                                                                              End Sub)
-                    If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
-                Else
-                    Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Bounce(FigurSpeed * 2), 1, 0, Nothing)
-                    If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
-                End If
-            End If
-            FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_Linear(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
-            FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
-        Else
-            If Not PlayStompSound Then SFX(2).Play()
-            SwitchPlayer()
-        End If
-
-    End Sub
-
-    Friend Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2 Implements IGameWindow.GetSpielfeldVector
-        Dim pl As Player = Spielers(player)
-        Dim chr As Integer = pl.Spielfiguren(figur) + increment
-        Select Case chr
-            Case -1 'Zeichne Figur in Homebase
-                Return Vector2.Transform(GetSpielfeldPositionen(figur), transmatrices(player))
-            Case 40, 41, 42, 43 'Zeichne Figur in Haus
-                Return Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(player))
-            Case Else 'Zeichne Figur auf Feld
-                Dim matrx As Matrix = transmatrices((player + Math.Floor(chr / 10)) Mod 4)
-                Return Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx)
-        End Select
-    End Function
-
+    ''' <summary>
+    ''' Berechnet die Spielelogik.
+    ''' </summary>
+    ''' <param name="gameTime"></param>
     Friend Sub Update(ByVal gameTime As GameTime)
         Dim mstate As MouseState = Mouse.GetState()
         Dim kstate As KeyboardState = Keyboard.GetState()
@@ -467,6 +388,9 @@ Public Class GameRoom
     End Sub
 
 #Region "Netzwerkfunktionen"
+    ''' <summary>
+    ''' Liest die Daten aus dem Stream des Servers
+    ''' </summary>
     Private Sub ReadAndProcessInputData()
         Dim data As String() = LocalClient.ReadStream()
         For Each element In data
@@ -508,6 +432,7 @@ Public Class GameRoom
         Next
     End Sub
 
+    ' ---Methoden um Daten via den Server an die Clients zu senden---
     Private Sub SendPlayerArrived(index As Integer, name As String)
         SendNetworkMessageToAll("a" & index.ToString & name)
     End Sub
@@ -537,7 +462,6 @@ Public Class GameRoom
 
     Private Sub SendGameClosed()
         SendNetworkMessageToAll("l")
-        ServerClosedManually = True
     End Sub
 
     Private Sub SendWinFlag(who As Integer)
@@ -549,7 +473,9 @@ Public Class GameRoom
     End Sub
 #End Region
 
-#Region "Hilfsfunktionen"
+    ''' <summary>
+    ''' Prüft nach dem Würfeln, wie der Zug weitergeht(Ist Zug möglich, muss Figur ausgewählt werden, ...)
+    ''' </summary>
     Private Sub CalcMoves()
         Dim homebase As Integer = GetHomebaseIndex(SpielerIndex) 'Eine Spielfigur-ID, die sich in der Homebase befindet(-1, falls Homebase leer ist)
         Dim startfd As Boolean = IsFieldCoveredByOwnFigure(SpielerIndex, 0) 'Ob das Start-Feld blockiert ist
@@ -614,6 +540,7 @@ Public Class GameRoom
         End If
     End Sub
 
+#Region "Hilfsfunktionen"
     Private Function CheckKick(Optional Increment As Integer = 0) As Integer
         'Berechne globale Spielfeldposition der rauswerfenden Figur
         Dim playerA As Integer = FigurFaderZiel.Item1
@@ -776,6 +703,87 @@ Public Class GameRoom
             If WürfelWerte(i) = 6 Then Return WürfelWerte(i + 1)
         Next
         Return -1
+    End Function
+    Private Function GetChrRect(vc As Vector2) As Rectangle
+        Return New Rectangle(vc.X - 20, vc.Y - 20, 40, 40)
+    End Function
+
+    Private Sub StartMoverSub(Optional destination As Integer = -1)
+        'Set values
+        FigurFaderEnd = If(destination < 0, Math.Max(Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2), 0) + Fahrzahl, destination)
+        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
+        Status = SpielStatus.FahreFelder
+        PlayStompSound = False
+
+        'Initiate
+        If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
+            Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
+            If (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1) Or (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1 = 0) Then
+                Dim kickID As Integer = CheckKick(1)
+                Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
+                                                                                                                              If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
+                                                                                                                              If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
+                                                                                                                              Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
+                                                                                                                              Automator.Add(transB)
+                                                                                                                              FigurFaderScales.Add(key, transB)
+                                                                                                                          End Sub)
+                If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
+            Else
+                Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Bounce(FigurSpeed * 2), 1, 0, Nothing)
+                If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
+            End If
+        End If
+        FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_EaseInEaseOut(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
+        FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
+    End Sub
+
+    Private Sub MoverSub()
+        Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) += 1
+
+        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
+
+        If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) < FigurFaderEnd Then
+            SFX(3).Play()
+            If IsFieldCovered(FigurFaderZiel.Item1, FigurFaderZiel.Item2, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1) Then
+                Dim key As (Integer, Integer) = GetFieldID(FigurFaderZiel.Item1, Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1)
+                If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1 Then
+                    Dim kickID As Integer = CheckKick(1)
+                    PlayStompSound = True
+                    Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
+                                                                                                                                  SFX(4).Play()
+                                                                                                                                  If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
+                                                                                                                                  If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
+                                                                                                                                  Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
+                                                                                                                                  Automator.Add(transB)
+                                                                                                                                  FigurFaderScales.Add(key, transB)
+                                                                                                                              End Sub)
+                    If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
+                Else
+                    Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Bounce(FigurSpeed * 2), 1, 0, Nothing)
+                    If key.Item1 >= 0 And key.Item2 >= 0 Then Automator.Add(trans) : FigurFaderScales.Add(key, trans)
+                End If
+            End If
+            FigurFaderXY = New Transition(Of Vector2)(New TransitionTypes.TransitionType_Linear(FigurSpeed), FigurFaderVectors.Item1, FigurFaderVectors.Item2, AddressOf MoverSub) : Automator.Add(FigurFaderXY)
+            FigurFaderZ = New Transition(Of Integer)(New TransitionTypes.TransitionType_Parabole(FigurSpeed), 0, DopsHöhe, Nothing) : Automator.Add(FigurFaderZ)
+        Else
+            If Not PlayStompSound Then SFX(2).Play()
+            SwitchPlayer()
+        End If
+
+    End Sub
+
+    Friend Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2 Implements IGameWindow.GetSpielfeldVector
+        Dim pl As Player = Spielers(player)
+        Dim chr As Integer = pl.Spielfiguren(figur) + increment
+        Select Case chr
+            Case -1 'Zeichne Figur in Homebase
+                Return Vector2.Transform(GetSpielfeldPositionen(figur), transmatrices(player))
+            Case 40, 41, 42, 43 'Zeichne Figur in Haus
+                Return Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(player))
+            Case Else 'Zeichne Figur auf Feld
+                Dim matrx As Matrix = transmatrices((player + Math.Floor(chr / 10)) Mod 4)
+                Return Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx)
+        End Select
     End Function
 
     Private Function GetWürfelSourceRectangle(augenzahl As Integer) As Rectangle
