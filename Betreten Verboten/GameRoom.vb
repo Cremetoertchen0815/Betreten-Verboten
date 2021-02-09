@@ -1,4 +1,5 @@
 ﻿Imports System.Collections.Generic
+Imports System.Linq
 Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Framework.UI
@@ -288,34 +289,97 @@ Public Class GameRoom
                             If CPUTimer > CPUThinkingTime Then
                                 CPUTimer = 0
 
-                                Select Case Spielers(SpielerIndex).Schwierigkeit
-                                    Case Difficulty.Easy
-                                        'Wähle alle möglichen Zügen aus
-                                        Dim ichmagzüge As New List(Of Integer)
-                                        Dim defaultmov As Integer
-                                        For i As Integer = 0 To 3
-                                            defaultmov = pl.Spielfiguren(i)
-                                            If defaultmov > -1 And defaultmov + Fahrzahl <= PlCount * 10 + 3 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
-                                        Next
+                                Dim k As Integer
+                                Dim ichmagzüge As New List(Of Integer)
+                                Dim defaultmov As Integer
+                                For i As Integer = 0 To 3
+                                    defaultmov = pl.Spielfiguren(i)
+                                    If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+                                Next
+                                'Prüfe ob Zug möglich
+                                If ichmagzüge.Count = 0 Then SwitchPlayer() : Exit Select
 
-                                        'Prüfe ob Zug möglich
-                                        If ichmagzüge.Count = 0 Then SwitchPlayer() : Exit Select
+                                Select Case Spielers(SpielerIndex).Schwierigkeit
+                                    Case Difficulty.Brainless
 
                                         'Berechne zufällig das zu fahrende Feld
-                                        Dim k As Integer = ichmagzüge(RNG.Next(0, ichmagzüge.Count))
-                                        defaultmov = pl.Spielfiguren(k)
-                                        'Setze flags
-                                        Status = SpielStatus.FahreFelder
-                                        FigurFaderZiel = (SpielerIndex, k)
+                                        k = ichmagzüge(RNG.Next(0, ichmagzüge.Count))
 
-                                        'Move camera
-                                        FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, StdCam, Nothing) : Automator.Add(FigurFaderCamera)
+                                    Case Difficulty.Smart
 
-                                        'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
-                                        StartMoverSub()
-                                        SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
-                                        StopUpdating = False
+                                        Dim Scores As New Dictionary(Of Integer, Single) ' im INteger ist der Index der FIgur und im Single der Score
+                                        For Each element In ichmagzüge
+                                            Scores.Add(element, 1)
+                                        Next
+
+                                        'Spielfigurimportans: eine Figur die näher am Ziel ist ist wichtiger
+                                        Dim durchschnitt As New Single
+                                        For Each element In ichmagzüge
+                                            durchschnitt += Spielers(SpielerIndex).Spielfiguren(element)
+                                        Next
+                                        durchschnitt /= ichmagzüge.Count
+                                        For Each element In ichmagzüge
+                                            Scores(element) *= Math.Max(Spielers(SpielerIndex).Spielfiguren(element) / durchschnitt * 0.8, 0.2)
+                                        Next
+
+                                        ' Safety:ist eine Figur höchstens 6 felder vor einer Feindlichen Figur entfernt, ist sie in einer Gefahrenzone die avoidet werden soll
+                                        For Each element In ichmagzüge
+                                            Dim locpos As Integer = Spielers(SpielerIndex).Spielfiguren(element)
+                                            Dim Globpos As Integer = PlayerFieldToGlobalField(locpos, SpielerIndex)
+                                            For ALVSP As Integer = 0 To 3
+                                                If ALVSP <> SpielerIndex Then
+                                                    For ALVSPF As Integer = 0 To 3
+                                                        Dim locposB As Integer = Spielers(ALVSP).Spielfiguren(ALVSPF)
+                                                        Dim GlobposB As Integer = PlayerFieldToGlobalField(locposB, ALVSP)
+                                                        If GlobposB < Globpos And GlobposB >= Globpos - 6 Then
+                                                            Scores(element) *= 0.8
+                                                        End If
+                                                    Next
+
+                                                End If
+
+                                            Next
+                                        Next
+
+                                        ' Attackopportunity:kann der zug einen Feindlichen spieler eleminieren? 
+                                        For Each element In ichmagzüge
+                                            Dim Ergebnis As (Integer, Integer) = GetKickFigur(SpielerIndex, element, Fahrzahl)
+                                            If Ergebnis.Item1 <> -1 And Ergebnis.Item2 <> -1 Then
+                                                Scores(element) *= 2.5
+                                            End If
+                                        Next
+
+                                        'Risk:nicht auf den Spielfeld eingang eines gegners stellen da eine neue figur erscheinen könnte.
+                                        For Each element In ichmagzüge
+                                            Dim locpos As Integer = Spielers(SpielerIndex).Spielfiguren(element)
+                                            If locpos > 0 And locpos + Fahrzahl Mod 10 = 0 Then
+                                                Scores(element) *= 0.8
+                                            End If
+                                        Next
+
+                                        'Sortieren und besten Zug filtern
+                                        Dim NeueLIsteweilIChsehrcreativebin As New List(Of (Integer, Single))
+                                        For Each element In ichmagzüge
+                                            NeueLIsteweilIChsehrcreativebin.Add((element, Scores(element)))
+                                        Next
+                                        NeueLIsteweilIChsehrcreativebin = NeueLIsteweilIChsehrcreativebin.OrderBy(Function(x) x.Item2).ToList()
+                                        NeueLIsteweilIChsehrcreativebin.Reverse()
+                                        k = NeueLIsteweilIChsehrcreativebin(0).Item1
                                 End Select
+
+
+                                defaultmov = pl.Spielfiguren(k)
+                                'Setze flags
+                                Status = SpielStatus.FahreFelder
+                                FigurFaderZiel = (SpielerIndex, k)
+
+                                'Move camera
+                                FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(CamSpeed), GetCamPos, StdCam, Nothing) : Automator.Add(FigurFaderCamera)
+
+                                'Animiere wie die Figur sich nach vorne bewegt, anschließend prüfe ob andere Spieler rausgeschmissen wurden
+                                StartMoverSub()
+                                SendFigureTransition(SpielerIndex, k, defaultmov + Fahrzahl)
+                                StopUpdating = False
                             End If
                     End Select
 
@@ -553,6 +617,28 @@ Public Class GameRoom
         Next
         Return -1
     End Function
+    Private Function GetKickFigur(player As Integer, figur As Integer, Optional Increment As Integer = 0) As (Integer, Integer)
+        'Berechne globale Spielfeldposition der rauswerfenden Figur
+        Dim playerA As Integer = player
+        Dim fieldA As Integer = Spielers(playerA).Spielfiguren(figur) + Increment
+        Dim fa As Integer = PlayerFieldToGlobalField(fieldA, playerA)
+        'Loope durch andere Spieler
+        For i As Integer = playerA + 1 To playerA + 3
+            'Loope durch alle Spielfiguren eines jeden Spielers
+            For j As Integer = 0 To 3
+                'Berechne globale Spielfeldposition der rauszuwerfenden Spielfigur
+                Dim playerB As Integer = i Mod 4
+                Dim fieldB As Integer = Spielers(playerB).Spielfiguren(j)
+                Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
+                'Falls globale Spielfeldposition identisch und 
+                If fieldB >= 0 And fieldB <= 40 And fb = fa Then
+                    Return (i, j)
+                End If
+            Next
+        Next
+        Return (-1, -1)
+    End Function
+
 
     Private Function GetNormalDiceSum() As Integer
         Dim sum As Integer = 0
@@ -612,7 +698,7 @@ Public Class GameRoom
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And ((fieldA < PlCount * 10 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
+                If fieldB > -1 And ((fieldA < PlCount * 10 AndAlso (player <> i Or figur <> j) And fb = fa)) Then Return True
             Next
         Next
 
