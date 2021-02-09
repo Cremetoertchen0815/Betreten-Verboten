@@ -91,7 +91,7 @@
 /processorParam:DebugMode=Auto
 /build:fx/fx_gaussianblur.fx
 
-#begin playfield_connections.png
+#begin playfield_connections_0.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -101,7 +101,19 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:playfield_connections.png
+/build:playfield_connections_0.png
+
+#begin playfield_connections_1.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:playfield_connections_1.png
 
 #begin sfx/access_denied.wav
 /importer:WavImporter

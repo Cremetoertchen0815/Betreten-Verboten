@@ -40,3 +40,8 @@ Public Enum Difficulty
     Medium = 1
     Hard = 2
 End Enum
+
+Public Enum GaemMap
+    Default4Players = 0
+    Default6Players = 1
+End Enum

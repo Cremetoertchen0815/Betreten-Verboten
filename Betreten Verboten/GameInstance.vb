@@ -31,6 +31,9 @@ Public Class GameInstance
     Private MenschenOnline As Integer = 0
     Private SelectedOnlineGaemIndex As Integer = -1
     Private ServerTempName As String
+    Private PlayerCount As Integer = 4
+    Private PlayerSel As Integer = 0
+    Private Map As GaemMap = 0
 
     'Konstanten
     Friend Const FadeOverTime As Integer = 500
@@ -178,19 +181,39 @@ Public Class GameInstance
                             Automator.Add(Schwarzblende)
                         End If
                     Case 1
-                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(0) = (NewGamePlayers(0) + 1) Mod 2 : SFX(2).Play()
-                        If New Rectangle(560, 350, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(1) = (NewGamePlayers(1) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
-                        If New Rectangle(560, 500, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(2) = (NewGamePlayers(2) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
-                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then NewGamePlayers(3) = (NewGamePlayers(3) + 1) Mod If(IsConnectedToServer, 4, 3) : SFX(2).Play()
+                        If New Rectangle(560, 200, 800, 100).Contains(mpos) And OneshotPressed Then
+                            Map = (Map + 1) Mod 2
+                            ReDim NewGamePlayers(GetMapSize(Map) - 1)
+                            SFX(2).Play()
+                        End If
+                        If New Rectangle(560, 500, 400, 100).Contains(mpos) And OneshotPressed Then PlayerSel -= 1 : SFX(2).Play()
+                        If New Rectangle(960, 500, 400, 100).Contains(mpos) And OneshotPressed Then PlayerSel += 1 : SFX(2).Play()
+                        If New Rectangle(560, 650, 800, 100).Contains(mpos) And OneshotPressed Then
+                            If PlayerSel = 0 Then
+                                NewGamePlayers(PlayerSel) = (NewGamePlayers(PlayerSel) + 1) Mod 2
+                            Else
+                                NewGamePlayers(PlayerSel) = (NewGamePlayers(PlayerSel) + 1) Mod If(IsConnectedToServer, 4, 3)
+                            End If
+                            SFX(2).Play()
+                        End If
                         If New Rectangle(560, 900, 400, 100).Contains(mpos) And OneshotPressed Then SwitchToSubmenu(0)
                         If New Rectangle(960, 900, 400, 100).Contains(mpos) And OneshotPressed Then
                             SFX(2).Play()
-                            If IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online) Then
+
+                            Dim Internetz As Boolean = False
+                            For i As Integer = 0 To GetMapSize(Map) - 1
+                                If NewGamePlayers(i) = SpielerTyp.Online And IsConnectedToServer Then Internetz = True : Exit For
+                            Next
+
+                            If IsConnectedToServer And Internetz Then
                                 OpenInputbox("Enter a name for the round:", "Start Round", AddressOf StartNewRound)
                             Else
                                 StartNewRound("")
                             End If
                         End If
+
+                        PlayerCount = GetMapSize(Map)
+                        PlayerSel = Math.Min(Math.Max(PlayerSel, 0), PlayerCount - 1)
                     Case 2
                         If New Rectangle(560, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex -= 1 : SFX(2).Play()
                         If New Rectangle(960, 200, 400, 100).Contains(mpos) And OneshotPressed Then SelectedOnlineGaemIndex += 1 : SFX(2).Play()
@@ -252,15 +275,21 @@ Public Class GameInstance
     End Sub
 
     Private Sub StartNewRound(servername As String)
-        Dim Internetz As Boolean = IsConnectedToServer And (NewGamePlayers(1) = SpielerTyp.Online Or NewGamePlayers(2) = SpielerTyp.Online Or NewGamePlayers(3) = SpielerTyp.Online)
+        Dim Internetz As Boolean = False
+        For i As Integer = 0 To GetMapSize(Map) - 1
+            If NewGamePlayers(i) = SpielerTyp.Online And IsConnectedToServer Then Internetz = True : Exit For
+        Next
         If Internetz Then LocalClient.AutomaticRefresh = False
 
         AktuellesSpiel = New GameRoom
+        AktuellesSpiel.Map = Map
         AktuellesSpiel.LoadContent()
         AktuellesSpiel.Init()
+        AktuellesSpiel.PlCount = GetMapSize(Map)
+        ReDim AktuellesSpiel.Spielers(AktuellesSpiel.PlCount - 1)
         AktuellesSpiel.NetworkMode = False
         AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
-        For i As Integer = 1 To 3
+        For i As Integer = 1 To AktuellesSpiel.PlCount - 1
             Select Case NewGamePlayers(i)
                 Case SpielerTyp.Local
                     AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Local, My.Settings.Schwierigkeitsgrad) With {.Name = My.Settings.Username & "-" & (i + 1).ToString}
@@ -274,7 +303,7 @@ Public Class GameInstance
         Next
         Schwarzblende = New ShaderTransition(New TransitionTypes.TransitionType_Linear(FadeOverTime), 1.0F, 0F, BrightFX, "amount", Sub()
                                                                                                                                         If Internetz Then
-                                                                                                                                            If Not LocalClient.CreateGame(servername, AktuellesSpiel.Spielers) Then Microsoft.VisualBasic.MsgBox("Somethings wrong, mate!") Else AktuellesSpiel.NetworkMode = True
+                                                                                                                                            If Not LocalClient.CreateGame(servername, Map, AktuellesSpiel.Spielers) Then Microsoft.VisualBasic.MsgBox("Somethings wrong, mate!") Else AktuellesSpiel.NetworkMode = True
                                                                                                                                         End If
                                                                                                                                         InGame = True
                                                                                                                                         InSlave = False
@@ -319,17 +348,19 @@ Public Class GameInstance
                     Case 1
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Start Round").X / 2, 50), FgColor)
 
-                        SpriteBatch.DrawString(MediumFont, "Player 1: " & NewGamePlayers(0).ToString, New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Player 1: " & NewGamePlayers(0).ToString).X / 2, 225), FgColor)
-                        SpriteBatch.DrawString(MediumFont, "Player 2: " & NewGamePlayers(1).ToString, New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Player 2: " & NewGamePlayers(1).ToString).X / 2, 375), FgColor)
-                        SpriteBatch.DrawString(MediumFont, "Player 3: " & NewGamePlayers(2).ToString, New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Player 3: " & NewGamePlayers(2).ToString).X / 2, 525), FgColor)
-                        SpriteBatch.DrawString(MediumFont, "Player 4: " & NewGamePlayers(3).ToString, New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Player 4: " & NewGamePlayers(3).ToString).X / 2, 675), FgColor)
+                        DrawLine(New Vector2(GameSize.X / 2, 500), New Vector2(GameSize.X / 2, 600), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "←", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("←").X / 2, 525), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "→", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("→").X / 2, 525), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "Map: " & GetMapName(Map), New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Map: " & GetMapName(Map)).X / 2, 225), FgColor)
+                        SpriteBatch.DrawString(MediumFont, PlayerCount.ToString & " Player", New Vector2(GameSize.X / 2 - MediumFont.MeasureString(PlayerCount.ToString & " Player").X / 2, 375), FgColor)
+                        SpriteBatch.DrawString(MediumFont, "Player " & (PlayerSel + 1).ToString & ": " & NewGamePlayers(PlayerSel).ToString, New Vector2(GameSize.X / 2 - MediumFont.MeasureString("Player " & (PlayerSel + 1).ToString & ": " & NewGamePlayers(PlayerSel).ToString).X / 2, 675), FgColor)
                         DrawRectangle(New Rectangle(560, 900, 800, 100), FgColor)
                         DrawLine(New Vector2(GameSize.X / 2, 900), New Vector2(GameSize.X / 2, 1000), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Back", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("Back").X / 2, 925), FgColor)
                         SpriteBatch.DrawString(MediumFont, "Start Round", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("Start Round").X / 2, 925), FgColor)
                     Case 2
                         SelectedOnlineGaemIndex = Math.Min(Math.Max(SelectedOnlineGaemIndex, 0), OnlineGameInstances.Length - 1)
-                        Dim currentgaem As String = If(SelectedOnlineGaemIndex > -1, OnlineGameInstances(SelectedOnlineGaemIndex).Name & "(" & OnlineGameInstances(SelectedOnlineGaemIndex).Players.ToString & "/4)", "[No open rounds]")
+                        Dim currentgaem As String = If(SelectedOnlineGaemIndex > -1, OnlineGameInstances(SelectedOnlineGaemIndex).Name & "(" & OnlineGameInstances(SelectedOnlineGaemIndex).Players.ToString & "/" & OnlineGameInstances(SelectedOnlineGaemIndex).PlayerCount.ToString & ")", "[No open rounds]")
                         DrawLine(New Vector2(GameSize.X / 2, 200), New Vector2(GameSize.X / 2, 300), FgColor)
                         SpriteBatch.DrawString(MediumFont, "←", New Vector2(GameSize.X / 2 - 200 - MediumFont.MeasureString("←").X / 2, 225), FgColor)
                         SpriteBatch.DrawString(MediumFont, "→", New Vector2(GameSize.X / 2 + 200 - MediumFont.MeasureString("→").X / 2, 225), FgColor)
@@ -395,6 +426,9 @@ Public Class GameInstance
                 BlockOnlineJoin = False
             Case 1
                 NewGamePlayers = {SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local, SpielerTyp.Local}
+                Map = GaemMap.Default4Players
+                PlayerCount = 4
+                PlayerSel = 0
         End Select
 
         'Blende über
@@ -415,11 +449,14 @@ Public Class GameInstance
             BlockOnlineJoin = True
             LocalClient.AutomaticRefresh = False
             AktuellerSlave = New SlaveWindow
-            AktuellerSlave.LoadContent()
-            AktuellerSlave.Init()
 
             Dim index As Integer
-            If Not LocalClient.JoinGame(ins.Key, index, AktuellerSlave.Spielers, AktuellerSlave.Rejoin) Then Return
+            Dim mapp As GaemMap
+            If Not LocalClient.JoinGame(ins.Key, index, AktuellerSlave.Spielers, AktuellerSlave.Rejoin, mapp) Then Return
+            AktuellerSlave.Map = mapp
+            AktuellerSlave.PlCount = GetMapSize(mapp)
+            AktuellerSlave.LoadContent()
+            AktuellerSlave.Init()
 
 
             AktuellerSlave.UserIndex = index

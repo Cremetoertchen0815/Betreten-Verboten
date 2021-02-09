@@ -125,7 +125,8 @@ Namespace Networking
                     If firstline <> "That's it!" Then
                         Dim gaem As New OnlineGameInstance With {.Key = CInt(firstline),
                                                                  .Name = ReadString(),
-                                                                 .Players = CInt(ReadString())}
+                                                                 .Players = CInt(ReadString()),
+                                                                 .PlayerCount = CInt(ReadString())}
                         lst.Add(gaem)
                     Else
                         Exit Do
@@ -153,18 +154,20 @@ Namespace Networking
             End Try
         End Function
 
-        Public Function JoinGame(id As Integer, ByRef index As Integer, ByRef Spielers As Player(), ByRef Rejoin As Boolean) As Boolean
+        Public Function JoinGame(id As Integer, ByRef index As Integer, ByRef Spielers As Player(), ByRef Rejoin As Boolean, ByRef map As GaemMap) As Boolean
             'Kein Zugriff auf diese Daten wenn in Blastmodus oder Verbindung getrennt
             If blastmode Or Not Connected Then Return False
             blastmode = True
 
             WriteString("join")
             WriteString(id)
-
+            map = CInt(ReadString())
+            ReDim Spielers(GetMapSize(map) - 1)
             index = CInt(ReadString())
-            For i As Integer = 0 To 3
-                Dim str As String = ReadString()
-                Spielers(i) = New Player(SpielerTyp.Online) With {.Name = If(i = index, My.Settings.Username, str)}
+            For i As Integer = 0 To GetMapSize(map) - 1
+                Dim type As SpielerTyp = CInt(ReadString())
+                Dim name As String = ReadString()
+                Spielers(i) = New Player(If(type = SpielerTyp.None, type, SpielerTyp.Online)) With {.Name = If(i = index, My.Settings.Username, name)}
             Next
 
             Rejoin = ReadString() = "Rejoin"
@@ -180,13 +183,14 @@ Namespace Networking
             Return True
         End Function
 
-        Public Function CreateGame(name As String, types As Player()) As Boolean
+        Public Function CreateGame(name As String, map As GaemMap, types As Player()) As Boolean
             'Kein Zugriff auf diese Daten wenn in Blastmodus oder Verbindung getrennt
             If blastmode Or Not Connected Then Return False
 
             WriteString("create")
             WriteString(name)
-            For i As Integer = 0 To 3
+            WriteString(CInt(map).ToString)
+            For i As Integer = 0 To GetMapSize(map) - 1
                 WriteString(CInt(types(i).Typ).ToString)
                 If types(i).Typ <> SpielerTyp.Online And types(i).Typ <> SpielerTyp.None Then WriteString(types(i).Name)
             Next

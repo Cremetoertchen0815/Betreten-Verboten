@@ -2,6 +2,7 @@
     Public Class Game
         Public Property Key As Integer
         Public Property Name As String
+        Public Property Map As GaemMap
         Public Property Players As Player() = {Nothing, Nothing, Nothing, Nothing}
         Public Property Ended As Boolean = False
         Public Property HostConnection As Connection

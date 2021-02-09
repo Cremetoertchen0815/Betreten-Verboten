@@ -15,10 +15,12 @@ Public Class GameRoom
 
     'Spiele-Flags und Variables
     Friend Spielers As Player() = {Nothing, Nothing, Nothing, Nothing} 'Enthält sämtliche Spieler, die an dieser Runde teilnehmen
+    Friend PlCount As Integer
     Friend NetworkMode As Boolean = False
     Friend SpielerIndex As Integer = -1 'Gibt den Index des Spielers an, welcher momentan an den Reihe ist.
     Friend UserIndex As Integer 'Gibt den Index des Spielers an, welcher momentan durch diese Spielinstanz repräsentiert wird
     Friend Status As SpielStatus 'Speichert den aktuellen Status des Spiels
+    Friend Map As GaemMap 'Gibt die Map an, die verwendet wird
     Private WürfelAktuelleZahl As Integer 'Speichert den WErt des momentanen Würfels
     Private WürfelWerte As Integer() 'Speichert die Werte der Würfel
     Private WürfelTimer As Double 'Wird genutzt um den Würfelvorgang zu halten
@@ -30,6 +32,8 @@ Public Class GameRoom
     Private lastmstate As MouseState 'Enthält den Status der Maus aus dem letzten Frame
     Private lastkstate As KeyboardState 'Enthält den Status der Tastatur aus dem letzten Frame
     Private JokerListe As New List(Of Integer) 'Gibt an, welche Spieler ihren Joker bereits eingelöst haben
+    Private MoveActive As Boolean = False
+    Private RNG As Random 'Zufallsgenerator
 
     'Assets
     Friend Renderer As Renderer3D
@@ -38,7 +42,6 @@ Public Class GameRoom
     Private SpielfeldVerbindungen As Texture2D
     Private ButtonFont As SpriteFont
     Private ChatFont As SpriteFont
-    Private RNG As Random 'Zufallsgenerator
     Private bgm As Song
 
     'HUD
@@ -59,20 +62,17 @@ Public Class GameRoom
     Friend SelectFader As Transition(Of Single) 'Fader, welcher die zur Auswahl stehenden Figuren blinken lässt
     Friend Feld As Rectangle 'Gibt den Screen-Viewport des Spielfelds an
     Private Center As Vector2 'Gibt den Mittelpunkt des Screen-Viewports des Spielfelds an
-    Friend transmatrices As Matrix() = {Matrix.CreateRotationZ(MathHelper.PiOver2 * 3), Matrix.Identity, Matrix.CreateRotationZ(MathHelper.PiOver2), Matrix.CreateRotationZ(MathHelper.Pi)} 'Enthält Transform-Matritzen, welche die SPielfeld-Hitboxen um den Spielfeld-Mittelpunkt rotieren.
-    Friend playcolor As Color() = {Color.Magenta, Color.Lime, Color.Cyan, Color.Orange} 'Gibt die Farben der Spieler an
     Friend FigurFaderZiel As (Integer, Integer) 'Gibt an welche Figur bewegt werden soll (Spieler ind., Figur ind.)
     Friend FigurFaderEnd As Single 'Gibt an auf welchem Feld der Zug enden soll
     Friend FigurFaderXY As Transition(Of Vector2) 'Bewegt die zu animierende Figur auf der X- und Y-Achse
     Friend FigurFaderZ As Transition(Of Integer)  'Bewegt die zu animierende Figur auf der Z-Achse
     Friend FigurFaderScales As New Dictionary(Of (Integer, Integer), Transition(Of Single)) 'Gibt die Skalierung für einzelne Figuren an Key: (Spieler ID, Figur ID) Value: Transition(Z)
-    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)} 'Bewegt die Kamera
+    Friend FigurFaderCamera As New Transition(Of CamKeyframe) With {.Value = New CamKeyframe(-30, -20, -50, 0, 0.75, 0)} 'Bewegt die Kamera 
     Friend CPUTimer As Integer 'Timer-Flag um der CPU etwas "Überlegzeit" zu geben
     Friend PlayStompSound As Boolean 'Gibt an, ob der Stampf-Sound beim Landen(Kicken) gespielt werden soll
     Friend StdCam As New CamKeyframe(-30, -20, -50, 0, 0.75, 0) 'Gibt die Standard-Position der Kamera an
 
     'Konstanten
-    Private Const FDist As Integer = 85
     Private Const WürfelDauer As Integer = 400
     Private Const WürfelAnimationCooldown As Integer = 62
     Private Const FigurSpeed As Integer = 600
@@ -91,6 +91,7 @@ Public Class GameRoom
         Chat = New List(Of (String, Color))
         Status = SpielStatus.WarteAufOnlineSpieler
         SpielerIndex = -1
+        MoveActive = False
     End Sub
 
     Friend Sub LoadContent()
@@ -211,7 +212,7 @@ Public Class GameRoom
 
                                 WürfelTimer += gameTime.ElapsedGameTime.TotalMilliseconds
                                 'Implementiere einen Cooldown für die Würfelanimation
-                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RNG.Next(1, 7) : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
+                                If Math.Floor(WürfelTimer / WürfelAnimationCooldown) <> WürfelAnimationTimer Then WürfelAktuelleZahl = RollDice() : WürfelAnimationTimer = Math.Floor(WürfelTimer / WürfelAnimationCooldown) : SFX(7).Play()
 
                                 If WürfelTimer > WürfelDauer Then
                                     WürfelTimer = 0
@@ -244,7 +245,7 @@ Public Class GameRoom
                             If WürfelTimer > CPUThinkingTime Then
                                 'Nach kurzem Delay, fülle Würfel-Array mit Zufallszahlen
                                 For i As Integer = 0 To WürfelWerte.Length - 1
-                                    WürfelWerte(i) = RNG.Next(1, 7)
+                                    WürfelWerte(i) = RollDice()
                                 Next
                                 CalcMoves()
                             End If
@@ -258,24 +259,11 @@ Public Class GameRoom
                         Case SpielerTyp.Local
                             'Manuelle Auswahl für lokale Spieler
                             For k As Integer = 0 To 3
-                                Dim chr As Integer = pl.Spielfiguren(k)
-                                Dim vec As Vector2 = Vector2.Zero
-                                Dim matrx As Matrix = transmatrices(SpielerIndex)
-                                Select Case chr
-                                    Case -1
-                                    Case 40, 41, 42, 43 'Figur in Haus
-                                        vec = GetSpielfeldPositionen(chr - 26)
-                                    Case Else 'Figur auf Feld
-                                        vec = GetSpielfeldPositionen((chr Mod 10) + 4)
-                                        matrx = transmatrices((SpielerIndex + Math.Floor(chr / 10)) Mod 4)
-                                End Select
-
-                                'Anti-Stuck-Fuck
                                 Dim defaultmov As Integer = Spielers(SpielerIndex).Spielfiguren(k)
 
                                 'Prüfe Figur nach Mouse-Klick
-                                If GetChrRect(Center + Vector2.Transform(vec, matrx)).Contains(mpos) And chr > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
-                                    If defaultmov + Fahrzahl > 43 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Or IsÜberholingInSeHaus(defaultmov) Then
+                                If GetFigureRectangle(Map, SpielerIndex, k, Spielers, Center).Contains(mpos) And Spielers(SpielerIndex).Spielfiguren(k) > -1 And mstate.LeftButton = ButtonState.Pressed And lastmstate.LeftButton = ButtonState.Released Then
+                                    If defaultmov + Fahrzahl > PlCount * 10 + 3 Or IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, k) Or IsÜberholingInSeHaus(defaultmov) Then
                                         HUDInstructions.Text = "Incorrect move!"
                                     Else
                                         'Move camera
@@ -307,7 +295,7 @@ Public Class GameRoom
                                         Dim defaultmov As Integer
                                         For i As Integer = 0 To 3
                                             defaultmov = pl.Spielfiguren(i)
-                                            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
+                                            If defaultmov > -1 And defaultmov + Fahrzahl <= PlCount * 10 + 3 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
                                         Next
 
                                         'Prüfe ob Zug möglich
@@ -351,14 +339,14 @@ Public Class GameRoom
             End Select
 
             'Set HUD color
-            HUDColor = playcolor(UserIndex)
+            HUDColor = Renderer3D.playcolor(UserIndex)
             HUDBtnA.Color = HUDColor : HUDBtnA.Border = New ControlBorder(HUDColor, HUDBtnA.Border.Width)
             HUDBtnB.Color = HUDColor : HUDBtnB.Border = New ControlBorder(HUDColor, HUDBtnB.Border.Width)
             HUDBtnC.Color = HUDColor : HUDBtnC.Border = New ControlBorder(HUDColor, HUDBtnC.Border.Width)
             HUDChat.Color = HUDColor : HUDChat.Border = New ControlBorder(HUDColor, HUDChat.Border.Width)
             HUDChatBtn.Color = HUDColor : HUDChatBtn.Border = New ControlBorder(HUDColor, HUDChatBtn.Border.Width)
             HUDNameBtn.Text = If(SpielerIndex > -1, Spielers(SpielerIndex).Name, "")
-            HUDNameBtn.Color = If(SpielerIndex > -1, playcolor(SpielerIndex), Color.White)
+            HUDNameBtn.Color = If(SpielerIndex > -1, Renderer3D.playcolor(SpielerIndex), Color.White)
             HUDInstructions.Active = (Status = SpielStatus.WarteAufOnlineSpieler) OrElse (Spielers(SpielerIndex).Typ = SpielerTyp.Local)
         End If
 
@@ -392,6 +380,8 @@ Public Class GameRoom
     ''' Liest die Daten aus dem Stream des Servers
     ''' </summary>
     Private Sub ReadAndProcessInputData()
+        If MoveActive Then Return
+
         Dim data As String() = LocalClient.ReadStream()
         For Each element In data
             Dim source As Integer = CInt(element(0).ToString)
@@ -404,7 +394,7 @@ Public Class GameRoom
                     SendPlayerArrived(source, Spielers(source).Name)
                 Case "c"c 'Sent chat message
                     Dim text As String = element.Substring(2)
-                    PostChat("[" & Spielers(source).Name & "]: " & text, playcolor(source))
+                    PostChat("[" & Spielers(source).Name & "]: " & text, Renderer3D.playcolor(source))
                     SendChatMessage(source, text)
                 Case "e"c 'Suspend gaem
                     StopUpdating = True
@@ -547,15 +537,15 @@ Public Class GameRoom
         Dim fieldA As Integer = Spielers(playerA).Spielfiguren(FigurFaderZiel.Item2) + Increment
         Dim fa As Integer = PlayerFieldToGlobalField(fieldA, playerA)
         'Loope durch andere Spieler
-        For i As Integer = playerA + 1 To playerA + 3
+        For i As Integer = playerA + 1 To playerA + PlCount - 1
             'Loope durch alle Spielfiguren eines jeden Spielers
             For j As Integer = 0 To 3
                 'Berechne globale Spielfeldposition der rauszuwerfenden Spielfigur
-                Dim playerB As Integer = i Mod 4
+                Dim playerB As Integer = i Mod PlCount
                 Dim fieldB As Integer = Spielers(playerB).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB >= 0 And fieldB <= 40 And fb = fa Then
+                If fieldB >= 0 And fieldB <= PlCount * 10 And fb = fa Then
                     PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)
                     Return j
                 End If
@@ -574,11 +564,11 @@ Public Class GameRoom
     End Function
 
     Private Function CheckWin() As Integer
-        For i As Integer = 0 To 3
+        For i As Integer = 0 To PlCount - 1
             Dim pl As Player = Spielers(i)
             Dim check As Boolean = True
             For j As Integer = 0 To 3
-                If pl.Spielfiguren(j) < 40 Then check = False
+                If pl.Spielfiguren(j) < PlCount * 10 Then check = False
             Next
             If check Then Return i
         Next
@@ -594,7 +584,7 @@ Public Class GameRoom
         For i As Integer = 0 To 3
             defaultmov = pl.Spielfiguren(i)
             'Prüfe ob Zug mit dieser Figur möglich ist(Nicht in homebase, nicht über Ziel hinaus und Zielfeld nicht mit eigener Figur belegt
-            If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
+            If defaultmov > -1 And defaultmov + Fahrzahl <= PlCount * 10 + 3 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
         Next
 
         'Prüfe ob Zug möglich
@@ -602,10 +592,10 @@ Public Class GameRoom
     End Function
 
     Private Function IsÜberholingInSeHaus(defaultmov As Integer) As Boolean
-        If defaultmov + Fahrzahl < 40 Then Return False
+        If defaultmov + Fahrzahl < PlCount * 10 Then Return False
 
         For i As Integer = defaultmov + 1 To defaultmov + Fahrzahl
-            If IsFieldCovered(SpielerIndex, -1, i) And i >= 40 Then Return True
+            If IsFieldCovered(SpielerIndex, -1, i) And i >= PlCount * 10 Then Return True
         Next
 
         Return False
@@ -615,14 +605,14 @@ Public Class GameRoom
         If fieldA < 0 Then Return False
 
         Dim fa As Integer = PlayerFieldToGlobalField(fieldA, player)
-        For i As Integer = 0 To 3
+        For i As Integer = 0 To PlCount - 1
             'Loope durch alle Spielfiguren eines jeden Spielers
             For j As Integer = 0 To 3
                 'Berechne globale Spielfeldposition der rauszuwerfenden Spielfigur
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And ((fieldA < 40 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
+                If fieldB > -1 And ((fieldA < PlCount * 10 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
             Next
         Next
 
@@ -631,10 +621,10 @@ Public Class GameRoom
 
     Private Function GetFieldID(player As Integer, field As Integer) As (Integer, Integer)
         Dim fa As Integer = PlayerFieldToGlobalField(field, player)
-        For j As Integer = 0 To 3
+        For j As Integer = 0 To PlCount - 1
             For i As Integer = 0 To 3
                 Dim fieldB As Integer = Spielers(j).Spielfiguren(i)
-                If fieldB > 0 And fieldB < 40 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
+                If fieldB > 0 And fieldB < PlCount * 10 And fa = PlayerFieldToGlobalField(fieldB, j) Then Return (j, i)
             Next
         Next
         Return (-1, -1)
@@ -645,12 +635,12 @@ Public Class GameRoom
         Dim fieldlst As New List(Of Integer)
         For i As Integer = 0 To 3
             Dim tm As Integer = Spielers(player).Spielfiguren(i)
-            If tm >= 0 And tm < 40 Then Return False 'Falls sich Spieler auf dem Spielfeld befindet, ist dreimal würfeln unmöglich
-            If tm > 39 Then fieldlst.Add(tm) 'Merke FIguren, die sich im Haus befinden
+            If tm >= 0 And tm < PlCount * 10 Then Return False 'Falls sich Spieler auf dem Spielfeld befindet, ist dreimal würfeln unmöglich
+            If tm > PlCount * 10 - 1 Then fieldlst.Add(tm) 'Merke FIguren, die sich im Haus befinden
         Next
 
         'Wenn nicht alle FIguren bis an den Anschlag gefahren wurden, darf man nicht dreifach würfeln
-        For i As Integer = 43 To (43 - fieldlst.Count + 1) Step -1
+        For i As Integer = PlCount * 10 + 3 To (PlCount * 10 + 4 - fieldlst.Count) Step -1
             If Not fieldlst.Contains(i) Then Return False
         Next
 
@@ -695,7 +685,7 @@ Public Class GameRoom
     End Function
 
     Private Function PlayerFieldToGlobalField(field As Integer, player As Integer) As Integer
-        Return (field + player * 10) Mod 40
+        Return (field + player * 10) Mod (PlCount * 10)
     End Function
 
     Private Function GetSecondDiceAfterSix(player As Integer) As Integer
@@ -704,12 +694,10 @@ Public Class GameRoom
         Next
         Return -1
     End Function
-    Private Function GetChrRect(vc As Vector2) As Rectangle
-        Return New Rectangle(vc.X - 20, vc.Y - 20, 40, 40)
-    End Function
 
     Private Sub StartMoverSub(Optional destination As Integer = -1)
         'Set values
+        MoveActive = True
         FigurFaderEnd = If(destination < 0, Math.Max(Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2), 0) + Fahrzahl, destination)
         Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
         Status = SpielStatus.FahreFelder
@@ -721,6 +709,7 @@ Public Class GameRoom
             If (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) = FigurFaderEnd - 1) Or (Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) + 1 = 0) Then
                 Dim kickID As Integer = CheckKick(1)
                 Dim trans As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 1, 0, Sub()
+                                                                                                                              SFX(4).Play()
                                                                                                                               If kickID = key.Item2 Then Spielers(key.Item1).Spielfiguren(key.Item2) = -1
                                                                                                                               If FigurFaderScales.ContainsKey(key) Then FigurFaderScales.Remove(key)
                                                                                                                               Dim transB As New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(FigurSpeed), 0, 1, Nothing)
@@ -740,7 +729,7 @@ Public Class GameRoom
     Private Sub MoverSub()
         Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) += 1
 
-        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
+        Dim FigurFaderVectors = (GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 0), GetSpielfeldVector(FigurFaderZiel.Item1, FigurFaderZiel.Item2, 1))
 
         If Spielers(FigurFaderZiel.Item1).Spielfiguren(FigurFaderZiel.Item2) < FigurFaderEnd Then
             SFX(3).Play()
@@ -768,22 +757,13 @@ Public Class GameRoom
         Else
             If Not PlayStompSound Then SFX(2).Play()
             SwitchPlayer()
+            MoveActive = False
         End If
 
     End Sub
 
-    Friend Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2 Implements IGameWindow.GetSpielfeldVector
-        Dim pl As Player = Spielers(player)
-        Dim chr As Integer = pl.Spielfiguren(figur) + increment
-        Select Case chr
-            Case -1 'Zeichne Figur in Homebase
-                Return Vector2.Transform(GetSpielfeldPositionen(figur), transmatrices(player))
-            Case 40, 41, 42, 43 'Zeichne Figur in Haus
-                Return Vector2.Transform(GetSpielfeldPositionen(chr - 26), transmatrices(player))
-            Case Else 'Zeichne Figur auf Feld
-                Dim matrx As Matrix = transmatrices((player + Math.Floor(chr / 10)) Mod 4)
-                Return Vector2.Transform(GetSpielfeldPositionen((chr Mod 10) + 4), matrx)
-        End Select
+    Private Function GetSpielfeldVector(player As Integer, figur As Integer, Optional increment As Integer = 0) As Vector2
+        Return GetMapVectorPos(Map, player, figur, Spielers(player).Spielfiguren(figur) + increment)
     End Function
 
     Private Function GetWürfelSourceRectangle(augenzahl As Integer) As Rectangle
@@ -805,48 +785,6 @@ Public Class GameRoom
         End Select
     End Function
 
-    Friend Shared Function GetSpielfeldPositionen(ps As PlayFieldPos) As Vector2
-        Select Case ps
-            Case PlayFieldPos.Home1
-                Return New Vector2(-420, -420)
-            Case PlayFieldPos.Home2
-                Return New Vector2(-350, -420)
-            Case PlayFieldPos.Home3
-                Return New Vector2(-420, -350)
-            Case PlayFieldPos.Home4
-                Return New Vector2(-350, -350)
-            Case PlayFieldPos.Haus1
-                Return New Vector2(-FDist * 4, 0)
-            Case PlayFieldPos.Haus2
-                Return New Vector2(-FDist * 3, 0)
-            Case PlayFieldPos.Haus3
-                Return New Vector2(-FDist * 2, 0)
-            Case PlayFieldPos.Haus4
-                Return New Vector2(-FDist, 0)
-            Case PlayFieldPos.Feld1
-                Return New Vector2(-FDist * 5, -FDist)
-            Case PlayFieldPos.Feld2
-                Return New Vector2(-FDist * 4, -FDist)
-            Case PlayFieldPos.Feld3
-                Return New Vector2(-FDist * 3, -FDist)
-            Case PlayFieldPos.Feld4
-                Return New Vector2(-FDist * 2, -FDist)
-            Case PlayFieldPos.Feld5
-                Return New Vector2(-FDist, -FDist)
-            Case PlayFieldPos.Feld6
-                Return New Vector2(-FDist, -FDist * 2)
-            Case PlayFieldPos.Feld7
-                Return New Vector2(-FDist, -FDist * 3)
-            Case PlayFieldPos.Feld8
-                Return New Vector2(-FDist, -FDist * 4)
-            Case PlayFieldPos.Feld9
-                Return New Vector2(-FDist, -FDist * 5)
-            Case PlayFieldPos.Feld10
-                Return New Vector2(0, -FDist * 5)
-            Case Else
-                Return Vector2.Zero
-        End Select
-    End Function
 
     Private Sub PostChat(txt As String, color As Color)
         Chat.Add((txt, color))
@@ -855,9 +793,9 @@ Public Class GameRoom
 
     Private Sub SwitchPlayer()
         'Setze benötigte Flags
-        SpielerIndex = (SpielerIndex + 1) Mod 4
+        SpielerIndex = (SpielerIndex + 1) Mod PlCount
         Do While Spielers(SpielerIndex).Typ = SpielerTyp.None
-            SpielerIndex = (SpielerIndex + 1) Mod 4
+            SpielerIndex = (SpielerIndex + 1) Mod PlCount
         Loop
         HUDBtnC.Active = Not JokerListe.Contains(SpielerIndex)
         If Spielers(SpielerIndex).Typ <> SpielerTyp.Online Then Status = SpielStatus.Würfel Else Status = SpielStatus.Waitn
@@ -993,6 +931,12 @@ Public Class GameRoom
     Private ReadOnly Property IGameWindow_FigurFaderZ As Transition(Of Integer) Implements IGameWindow.FigurFaderZ
         Get
             Return FigurFaderZ
+        End Get
+    End Property
+
+    Public ReadOnly Property MapRet As GaemMap Implements IGameWindow.Map
+        Get
+            Return Map
         End Get
     End Property
 

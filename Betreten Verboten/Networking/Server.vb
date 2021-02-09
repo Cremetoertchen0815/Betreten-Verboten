@@ -85,10 +85,11 @@ Namespace Networking
                     Select Case str
                         Case "list"
                             For Each element In games
-                                If element.Value.GetPlayerCount < 4 Then
+                                If element.Value.GetPlayerCount < element.Value.Players.Length Then
                                     WriteString(con, element.Key.ToString)
                                     WriteString(con, element.Value.Name.ToString)
                                     WriteString(con, element.Value.GetPlayerCount.ToString)
+                                    WriteString(con, GetMapSize(element.Value.Map).ToString)
                                 End If
                             Next
                             WriteString(con, "That's it!")
@@ -97,12 +98,14 @@ Namespace Networking
                                 Dim id As Integer = CInt(ReadString(con))
                                 Dim gaem As Game = games(id)
                                 Dim index As Integer = -1
-                                If gaem.GetOnlinePlayerCount >= 4 Then
+                                WriteString(con, CInt(gaem.Map))
+                                If gaem.GetOnlinePlayerCount >= gaem.Players.Length Then
                                     If IsRejoining(gaem, con.nick, index) Then
                                         'Is Rejoining
                                         If index = -1 Then Throw New NotImplementedException
                                         WriteString(con, index)
-                                        For i As Integer = 0 To 3
+                                        For i As Integer = 0 To gaem.Players.Length - 1
+                                            WriteString(con, CInt(gaem.Players(i).Typ))
                                             WriteString(con, gaem.Players(i).Name)
                                         Next
                                         gaem.Players(index).Connection = con
@@ -112,14 +115,20 @@ Namespace Networking
                                     End If
                                 Else
                                     'Is joining from scratch
-                                    For i As Integer = 0 To 3
+                                    For i As Integer = 0 To gaem.Players.Length - 1
                                         If gaem.Players(i) Is Nothing Then index = i : Exit For
                                     Next
                                     If index = -1 Then Throw New NotImplementedException
                                     gaem.Players(index) = New Player(SpielerTyp.Online) With {.Bereit = False, .Connection = con, .Name = con.nick}
                                     WriteString(con, index)
-                                    For i As Integer = 0 To 3
-                                        If gaem.Players(i) IsNot Nothing Then WriteString(con, gaem.Players(i).Name) Else WriteString(con, "")
+                                    For i As Integer = 0 To gaem.Players.Length - 1
+                                        If gaem.Players(i) IsNot Nothing Then
+                                            WriteString(con, CInt(gaem.Players(i).Typ))
+                                            WriteString(con, gaem.Players(i).Name)
+                                        Else
+                                            WriteString(con, CInt(SpielerTyp.Online))
+                                            WriteString(con, "")
+                                        End If
                                     Next
                                     WriteString(con, "Nujoin")
                                 End If
@@ -135,10 +144,14 @@ Namespace Networking
                         Case "create"
                             Try
                                 Dim gamename As String = ReadString(con)
-                                Dim key As Integer = RNG.Next
-                                Dim nugaem As New Game With {.HostConnection = con, .Name = gamename, .Key = key}
-                                Dim types As SpielerTyp() = {SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online, SpielerTyp.Online}
-                                For i As Integer = 0 To 3
+                                Dim key As Integer = RNG.Next()
+                                'Read map from stream and resize arrays accordingly
+                                Dim map As GaemMap = CInt(ReadString(con))
+                                Dim nugaem As New Game With {.HostConnection = con, .Name = gamename, .Key = key, .Map = map}
+                                ReDim nugaem.Players(GetMapSize(map) - 1)
+                                Dim types As SpielerTyp() = New SpielerTyp(GetMapSize(map) - 1) {}
+                                'Receive player data
+                                For i As Integer = 0 To types.Length - 1
                                     types(i) = CInt(ReadString(con))
                                     Select Case types(i)
                                         Case SpielerTyp.Local
@@ -179,7 +192,7 @@ Namespace Networking
         Private Function IsRejoining(gaem As Game, nick As String, ByRef index As Integer) As Boolean
             If gaem Is Nothing Then Return False
             For i As Integer = 0 To gaem.Players.Length - 1
-                If gaem.Players(i).Name = nick Then index = i : Return True
+                If gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Name = nick Then index = i : Return True
             Next
             Return False
         End Function
@@ -231,11 +244,11 @@ Namespace Networking
                             gaem.Players(who).Bereit = False
                             If Not games.ContainsKey(gaem.Key) Then games.Add(gaem.Key, gaem)
 
-                            For i As Integer = 1 To 3
+                            For i As Integer = 1 To gaem.Players.Length - 1
                                 If gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Typ = SpielerTyp.Online AndAlso gaem.Players(i).Connection IsNot Nothing Then WriteString(gaem.Players(i).Connection, nl)
                             Next
                         Case Else
-                            For i As Integer = 1 To 3
+                            For i As Integer = 1 To gaem.Players.Length - 1
                                 If gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Typ = SpielerTyp.Online AndAlso gaem.Players(i).Connection IsNot Nothing Then WriteString(gaem.Players(i).Connection, nl)
                             Next
                     End Select
@@ -250,7 +263,7 @@ Namespace Networking
             If Not gaem.Ended Then
                 gaem.Ended = True
                 Dim takenconnections As New List(Of Connection)
-                For i As Integer = 0 To 3
+                For i As Integer = 0 To gaem.Players.Length - 1
                     Try
                         If gaem IsNot Nothing AndAlso gaem.Players(i) IsNot Nothing AndAlso gaem.Players(i).Connection IsNot Nothing AndAlso Not takenconnections.Contains(gaem.Players(i).Connection) Then
                             WriteString(gaem.Players(i).Connection, "Understandable, have a nice day!")
