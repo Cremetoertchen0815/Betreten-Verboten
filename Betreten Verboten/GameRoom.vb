@@ -181,9 +181,30 @@ Public Class GameRoom
             'Prüfe, ob die Runde gewonnen wurde und beende gegebenenfalls die Runde
             Dim win As Integer = CheckWin()
             If win > -1 Then
+                StopUpdating = True
                 ShowDice = False
                 HUDInstructions.Text = "Game over!"
-                PostChat(Spielers(win).Name & " won!", Color.White)
+                'Berechne Rankings
+                Dim ranks As New List(Of (Integer, Integer)) '(Spieler ID, Score)
+                For i As Integer = 0 To PlCount - 1
+                    If i = win Then Continue For
+                    ranks.Add((i, GetScore(i)))
+                Next
+                ranks = ranks.OrderBy(Function(x) x.Item2).ToList()
+                ranks.Reverse()
+
+                Automator.Add(New TimerTransition(1000, Sub() PostChat("1st place: " & Spielers(win).Name & "(" & GetScore(win) & ")", Renderer3D.playcolor(win))))
+                For i As Integer = 0 To ranks.Count - 1
+                    Dim ia As Integer = i
+                    Select Case i
+                        Case 0
+                            Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat("2nd place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                        Case 1
+                            Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat("3rd place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                        Case Else
+                            Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat((ia + 2) & "th place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                    End Select
+                Next
                 SendWinFlag(win)
                 Status = SpielStatus.SpielZuEnde
                 FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(5000), GetCamPos, New CamKeyframe(-90, -240, 0, Math.PI / 4 * 5, Math.PI / 2, 0), Nothing) : Automator.Add(FigurFaderCamera)
@@ -294,7 +315,7 @@ Public Class GameRoom
                                 Dim defaultmov As Integer
                                 For i As Integer = 0 To 3
                                     defaultmov = pl.Spielfiguren(i)
-                                    If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) Then ichmagzüge.Add(i)
+                                    If defaultmov > -1 And defaultmov + Fahrzahl <= 43 And Not IsFutureFieldCoveredByOwnFigure(SpielerIndex, defaultmov + Fahrzahl, i) And Not IsÜberholingInSeHaus(defaultmov) Then ichmagzüge.Add(i)
                                 Next
                                 'Prüfe ob Zug möglich
                                 If ichmagzüge.Count = 0 Then SwitchPlayer() : Exit Select
@@ -621,6 +642,7 @@ Public Class GameRoom
                 'Falls globale Spielfeldposition identisch und 
                 If fieldB >= 0 And fieldB <= PlCount * 10 And fb = fa Then
                     Automator.Add(New TimerTransition(1000, Sub() PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)))
+                    Spielers(playerA).Kicks += 1
                     Return j
                 End If
             Next
@@ -687,6 +709,14 @@ Public Class GameRoom
         Return ichmagzüge.Count > 0
     End Function
 
+    Private Function GetScore(pl As Integer) As Integer
+        Dim ret As Integer = Spielers(pl).Kicks * 2
+        For Each element In Spielers(pl).Spielfiguren
+            ret += element
+        Next
+        Return ret * 10
+    End Function
+
     Private Function IsÜberholingInSeHaus(defaultmov As Integer) As Boolean
         If defaultmov + Fahrzahl < PlCount * 10 Then Return False
 
@@ -696,6 +726,7 @@ Public Class GameRoom
 
         Return False
     End Function
+
 
     Private Function IsFieldCovered(player As Integer, figur As Integer, fieldA As Integer) As Boolean
         If fieldA < 0 Then Return False
@@ -708,7 +739,7 @@ Public Class GameRoom
                 Dim fieldB As Integer = Spielers(i).Spielfiguren(j)
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, i)
                 'Falls globale Spielfeldposition identisch und 
-                If fieldB > -1 And ((fieldA < PlCount * 10 AndAlso (player <> i Or figur <> j) And fb = fa)) Then Return True
+                If fieldB > -1 And ((fieldA < PlCount * 10 AndAlso (player <> i Or figur <> j) And fb = fa) OrElse (fieldB < 45 And player = i And figur <> j And fieldA = fieldB)) Then Return True
             Next
         Next
 

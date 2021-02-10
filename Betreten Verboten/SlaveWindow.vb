@@ -1,4 +1,5 @@
 ﻿Imports System.Collections.Generic
+Imports System.Linq
 Imports Betreten_Verboten.Framework.Graphics
 Imports Betreten_Verboten.Framework.Tweening
 Imports Betreten_Verboten.Framework.UI
@@ -397,7 +398,27 @@ Public Class SlaveWindow
                     Dim playr As Integer = CInt(element(1).ToString)
                     ShowDice = False
                     HUDInstructions.Text = "Game over!"
-                    PostChat(Spielers(playr).Name & " won!", Color.White)
+                    'Berechne Rankings
+                    Dim ranks As New List(Of (Integer, Integer)) '(Spieler ID, Score)
+                    For i As Integer = 0 To PlCount - 1
+                        If i = playr Then Continue For
+                        ranks.Add((i, GetScore(i)))
+                    Next
+                    ranks = ranks.OrderBy(Function(x) x.Item2).ToList()
+                    ranks.Reverse()
+
+                    Automator.Add(New TimerTransition(1000, Sub() PostChat("1st place: " & Spielers(playr).Name & "(" & GetScore(playr) & ")", Renderer3D.playcolor(playr))))
+                    For i As Integer = 0 To ranks.Count - 1
+                        Dim ia As Integer = i
+                        Select Case i
+                            Case 0
+                                Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat("2nd place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                            Case 1
+                                Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat("3rd place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                            Case Else
+                                Automator.Add(New TimerTransition((2 + i) * 1000, Sub() PostChat((ia + 2) & "th place: " & Spielers(ranks(ia).Item1).Name & "(" & ranks(ia).Item2 & ")", Renderer3D.playcolor(ranks(ia).Item1))))
+                        End Select
+                    Next
                     Status = SpielStatus.SpielZuEnde
                     FigurFaderCamera = New Transition(Of CamKeyframe)(New TransitionTypes.TransitionType_EaseInEaseOut(5000), GetCamPos, New CamKeyframe(-90, -240, 0, Math.PI / 4 * 5, Math.PI / 2, 0), Nothing) : Automator.Add(FigurFaderCamera)
                     Renderer.AdditionalZPos = New Transition(Of Single)(New TransitionTypes.TransitionType_Acceleration(5000), 0, 1000, Nothing)
@@ -515,6 +536,7 @@ Public Class SlaveWindow
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
                 'Falls globale Spielfeldposition identisch und 
                 If fieldB >= 0 And fieldB <= PlCount * 10 And fb = fa Then
+                    Spielers(playerA).Kicks += 1
                     PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)
                     Return j
                 End If
@@ -616,6 +638,14 @@ Public Class SlaveWindow
             If Spielers(player).Spielfiguren(i) = futurefield And i <> fieldindx Then Return True
         Next
         Return False
+    End Function
+
+    Private Function GetScore(pl As Integer) As Integer
+        Dim ret As Integer = Spielers(pl).Kicks * 2
+        For Each element In Spielers(pl).Spielfiguren
+            ret += element
+        Next
+        Return ret * 10
     End Function
 
     'Gibt den Index ein Spielfigur zurück, die sich noch in der Homebase befindet. Falls keine Figur mehr in der Homebase, gibt die Fnkt. -1 zurück.

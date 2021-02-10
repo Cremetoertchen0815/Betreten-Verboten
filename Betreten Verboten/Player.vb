@@ -18,7 +18,13 @@ Public Class Player
     ''' Positionen der vier Spielfiguren.<br></br>
     ''' Positionen der Spielfiguren relativ zur Homebase angegeben(-1 = Homebase, 0 = Start-Feld, 1 = erstes Feld nach Start-Feld, ..., 39 = letztes Feld vor Start-Feld, 40 = erstes Feld im Haus, ..., 43 = letztes Feld in Haus)!
     ''' </summary>
-    Public Property Spielfiguren As Integer() = {-1, -1, -1, -1}
+    Public Property Spielfiguren As Integer() = {38, 40, 37, 43}
+
+    ''' <summary>
+    ''' Positionen der vier Spielfiguren.<br></br>
+    ''' Positionen der Spielfiguren relativ zur Homebase angegeben(-1 = Homebase, 0 = Start-Feld, 1 = erstes Feld nach Start-Feld, ..., 39 = letztes Feld vor Start-Feld, 40 = erstes Feld im Haus, ..., 43 = letztes Feld in Haus)!
+    ''' </summary>
+    Public Property Kicks As Integer = 0
 
     ''' <summary>
     ''' Gibt die Schwierigkeitstufe der CPU an
