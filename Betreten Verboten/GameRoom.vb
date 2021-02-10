@@ -620,7 +620,7 @@ Public Class GameRoom
                 Dim fb As Integer = PlayerFieldToGlobalField(fieldB, playerB)
                 'Falls globale Spielfeldposition identisch und 
                 If fieldB >= 0 And fieldB <= PlCount * 10 And fb = fa Then
-                    PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)
+                    Automator.Add(New TimerTransition(1000, Sub() PostChat(Spielers(playerA).Name & " kicked " & Spielers(playerB).Name & "!", Color.White)))
                     Return j
                 End If
             Next
