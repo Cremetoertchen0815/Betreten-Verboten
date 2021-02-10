@@ -288,13 +288,13 @@ Public Class GameInstance
         AktuellesSpiel.PlCount = GetMapSize(Map)
         ReDim AktuellesSpiel.Spielers(AktuellesSpiel.PlCount - 1)
         AktuellesSpiel.NetworkMode = False
-        AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), My.Settings.Schwierigkeitsgrad) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
+        AktuellesSpiel.Spielers(0) = New Player(NewGamePlayers(0), Difficulty.Smart) With {.Name = If(NewGamePlayers(0) = SpielerTyp.Local, My.Settings.Username, "CPU 1")}
         For i As Integer = 1 To AktuellesSpiel.PlCount - 1
             Select Case NewGamePlayers(i)
                 Case SpielerTyp.Local
                     AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Local, My.Settings.Schwierigkeitsgrad) With {.Name = My.Settings.Username & "-" & (i + 1).ToString}
                 Case SpielerTyp.CPU
-                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.CPU, My.Settings.Schwierigkeitsgrad) With {.Name = "CPU " & (i + 1).ToString}
+                    AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.CPU, Difficulty.Brainless) With {.Name = "CPU " & (i + 1).ToString}
                 Case SpielerTyp.Online
                     AktuellesSpiel.Spielers(i) = New Player(SpielerTyp.Online, My.Settings.Schwierigkeitsgrad) With {.Bereit = False}
                 Case SpielerTyp.None

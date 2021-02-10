@@ -2,7 +2,8 @@
 
 Module Maps
     Private RNG As New Random
-    Friend Function RollDice() As Integer
+    Friend Function RollDice(Optional hard As Boolean = False) As Integer
+        If hard Then Return (RNG.Next(0, 17) Mod 6) + 1
         Return RNG.Next(1, 7)
     End Function
 

@@ -18,7 +18,7 @@ Public Class Player
     ''' Positionen der vier Spielfiguren.<br></br>
     ''' Positionen der Spielfiguren relativ zur Homebase angegeben(-1 = Homebase, 0 = Start-Feld, 1 = erstes Feld nach Start-Feld, ..., 39 = letztes Feld vor Start-Feld, 40 = erstes Feld im Haus, ..., 43 = letztes Feld in Haus)!
     ''' </summary>
-    Public Property Spielfiguren As Integer() = {0, 5, 7, 9}  '{43, 42, 41, 38} {-1, -1, -1, -1} 
+    Public Property Spielfiguren As Integer() = {-1, -1, -1, -1}
 
     ''' <summary>
     ''' Gibt die Schwierigkeitstufe der CPU an
@@ -37,7 +37,7 @@ Public Class Player
 
     Sub New(typ As SpielerTyp, Optional schwierigkeit As Difficulty = Difficulty.Smart)
         Me.Typ = typ
-        Me.Schwierigkeit = Difficulty.Smart
+        Me.Schwierigkeit = schwierigkeit
     End Sub
 
 End Class
